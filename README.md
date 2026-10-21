@@ -1,0 +1,111 @@
+# hotelml: plataforma MLOps de referência
+
+Previsão de cancelamento de reservas de hotel, usada como pretexto para construir e documentar o
+ciclo completo de ML em produção: dados, treino reprodutível, registry, serving, monitoramento,
+alertas e operação, com infraestrutura em código na Azure.
+
+## Estado atual: fundação e implementação da fase 2
+
+| Fase | Conteúdo | Estado |
+|---|---|---|
+| 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
+| 2 | API FastAPI em container + Terraform na Azure + CD | implementada; deploy Azure por validar |
+| 3 | Feature pipeline e batch scoring em PySpark | pendente |
+| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | pendente |
+| 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
+| 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
+
+## Início rápido
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+make install
+
+make check              # ruff + mypy + pytest
+make train-synthetic    # treino local com dados sintéticos
+make train-real         # baixa o dataset do Hugging Face e treina
+make status             # versões champion / challenger / previous_champion
+make rollback           # volta o champion para a versão anterior
+make mlflow-ui          # http://localhost:5000
+```
+
+Copie `.env.example` para `.env` e preencha só o que precisar. O `.env` nunca é versionado.
+CLI e API carregam esse ficheiro sem sobrescrever variáveis já definidas no ambiente.
+
+No Windows/PowerShell, os comandos equivalentes estão no
+[runbook de deploy](docs/runbooks/deploy-azure.md). As dependências estão fixadas em
+`requirements.lock` (runtime) e `requirements-dev.lock` (desenvolvimento/CI).
+
+## API e publicação
+
+```bash
+hotelml export --output model-bundle
+uvicorn hotelml.api:app --host 127.0.0.1 --port 8000
+# Swagger: http://127.0.0.1:8000/docs
+docker build -t hotelml:local .
+docker run --rm -p 8001:8000 hotelml:local
+```
+
+`POST /predict` aceita `{"bookings": [...]}` com 1 a 100 reservas no contrato `INPUT_COLUMNS`.
+A resposta inclui nome/versão do modelo, probabilidade de cancelamento e decisão (limiar 0,5).
+`GET /health/live` e `GET /health/ready` são usados pelas probes e smoke tests.
+
+A API local resolve o champion no arranque; com `MODEL_BUNDLE`, usa o snapshot exportado.
+O container contém o modelo e não depende do registry durante a inferência. Alterações de aliases
+exigem reinício ou novo deploy; consulte o [ADR 0003](docs/adr/0003-serving-e-deploy.md) e o
+[runbook de rollback](docs/runbooks/rollback.md).
+
+`infra/` cria Container Apps (0–1 réplicas), ACR, identidade com `AcrPull`, logs e orçamento.
+O workflow manual **Deploy Azure** usa OIDC, CI obrigatório, smoke tests e deploy por digest.
+O primeiro deploy pode ser local; o CD requer um MLflow remoto com champion acessível ao runner.
+O exemplo tem ingress público de demonstração. Configuração, limitações e controlo de custos:
+[runbook de deploy](docs/runbooks/deploy-azure.md).
+
+## Como funciona o treino
+
+1. `validate_raw` confere o contrato dos dados (falha cedo, listando todos os problemas).
+2. `clean_training_data` remove linhas inválidas e cria a data de chegada.
+3. `time_split` treina no passado e avalia no futuro.
+4. O pipeline (features, pré-processamento, estimador) é logado no MLflow com assinatura, exemplo
+   de entrada e uma amostra de referência (base do detector de drift).
+5. O modelo é registrado como `challenger` e só vira `champion` se superar o atual
+   (ver `docs/adr/0002-registry-por-aliases.md`).
+
+## Estrutura
+
+```
+src/hotelml/   config, data, schema, features, train, metrics, registry, cli, synthetic
+tests/         unitários e de integração (MLflow em SQLite temporário)
+docs/adr/      decisões de arquitetura
+infra/         Terraform Azure (fase 2)
+scripts/       smoke test da API local e publicada
+pipelines/     jobs Spark (fase 3)
+```
+
+## Decisões e pendências
+
+- Dataset sem licença declarada na cópia do Hugging Face: ver ADR 0001. Os dados não são versionados.
+- CI e testes usam dados sintéticos com o mesmo schema, então rodam sem rede.
+
+## Treino real validado em 2026-10-21
+
+O download e o treino do dataset `gemuchu/hotel_bookings` foram executados localmente:
+119.390 linhas brutas, 95.366 reservas no treino e 23.842 no teste, com corte em 2017-04-22.
+O HistGradientBoosting foi registado como versão 1 no registry local e exportado para serving.
+
+| Métrica no teste temporal | Valor |
+| --- | --- |
+| ROC AUC | 0,8614 |
+| PR AUC (average precision) | 0,8234 |
+| F1 | 0,6936 |
+| Accuracy | 0,7779 |
+| Brier | 0,1569 |
+| Log loss | 0,4638 |
+
+Um smoke test HTTP com esse bundle confirmou readiness e três previsões válidas, incluindo
+a versão do modelo na resposta. Estes resultados descrevem este dataset e esta divisão;
+não medem desempenho em tráfego de produção. O deploy Azure e o teste Docker continuam pendentes.
+
+Validação local da implementação: 39 testes passaram, com 97,33% de cobertura; Ruff, verificação
+de formatação, mypy e `terraform validate` passaram. Os workflows estão preparados, mas ainda
+não foram executados no GitHub Actions nesta implementação.

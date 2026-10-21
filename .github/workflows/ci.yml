@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  workflow_call:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Instalar dependências
+        run: |
+          pip install -r requirements-dev.lock
+          pip install --no-deps -e .
+
+      - name: Lint (ruff)
+        run: ruff check src tests scripts
+
+      - name: Formatação (ruff format)
+        run: ruff format --check src tests scripts
+
+      - name: Tipos (mypy)
+        run: mypy src
+
+      - name: Testes
+        run: pytest --cov=hotelml --cov-report=term-missing --cov-fail-under=80
+
+      - name: Exportar modelo de demonstração
+        run: |
+          hotelml train --source synthetic --rows 3000
+          hotelml export --output model-bundle
+
+      - name: Construir e testar container
+        run: |
+          docker build -t hotelml:ci .
+          docker run -d --name hotelml-ci -p 8000:8000 hotelml:ci
+          VERSION=$(python -c "import json; print(json.load(open('model-bundle/manifest.json'))['model_version'])")
+          python scripts/smoke_api.py http://127.0.0.1:8000 --version "$VERSION"
+
+      - name: Logs do container
+        if: always()
+        run: docker logs hotelml-ci || true
+
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.13.5"
+      - run: terraform fmt -check -recursive infra
+      - run: terraform -chdir=infra init -backend=false
+      - run: terraform -chdir=infra validate

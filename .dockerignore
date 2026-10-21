@@ -1,0 +1,9 @@
+**
+!pyproject.toml
+!README.md
+!requirements.lock
+!src/
+!src/hotelml/
+!src/hotelml/*.py
+!model-bundle/
+!model-bundle/**

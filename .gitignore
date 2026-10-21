@@ -1,0 +1,39 @@
+# Segredos
+.env
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# MLflow e dados locais
+mlflow.db
+mlruns/
+mlartifacts/
+data/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+crash.log
+
+# Editores
+.idea/
+.vscode/
+.DS_Store
+model-bundle/
+*.tfplan
+.tools/
