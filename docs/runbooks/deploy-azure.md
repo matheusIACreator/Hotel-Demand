@@ -41,7 +41,10 @@ com as dependências do treino.
 
 Requer Azure CLI autenticada, Terraform >=1.9 e Docker ativo. A identidade que aplica precisa
 criar recursos, atribuir `AcrPull` e gerir budgets. Registe os resource providers requeridos se a
-subscrição ainda não os tiver ativos. O orçamento usa a moeda de faturação, não assume USD.
+subscrição ainda não os tiver ativos. O provider está configurado para registar apenas os
+namespaces necessários, incluindo `Microsoft.App`, em vez do conjunto legacy do AzureRM 4.
+Esse registo pode atrasar o primeiro `plan`, sem criar os recursos do laboratório.
+O orçamento usa a moeda de faturação, não assume USD.
 
 ```powershell
 az login
