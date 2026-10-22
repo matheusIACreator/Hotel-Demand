@@ -61,6 +61,7 @@ resource "azurerm_container_app" "api" {
   name                         = "api-${var.name}"
   resource_group_name          = azurerm_resource_group.main.name
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption"
   revision_mode                = "Single"
   tags                         = local.tags
 
