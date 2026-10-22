@@ -1,0 +1,163 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Paleta hotelaria: bege como base, branco neve nas áreas de leitura, castanho na ação principal.
+ * Verde, âmbar e terracota ficam reservados para estados e resultados.
+ * Os pares de contraste são verificados em lib/contrast.test.ts.
+ */
+:root {
+  --sand-50: #f7f4ee; /* fundo principal */
+  --snow: #fffdfa; /* cards e formulários */
+  --sand-200: #ede4d6; /* destaques suaves */
+  --sand-300: #ded6c9; /* bordas */
+  --ink: #302d28; /* texto principal */
+  --ink-muted: #6c645a; /* texto secundário (#71695f escurecido para AA sobre areia) */
+  --walnut: #655541; /* ação principal */
+  --olive: #526b55; /* sucesso */
+  --amber: #936522; /* atenção */
+  --terracotta: #a34f46; /* erro */
+
+  --background: var(--sand-50);
+  --foreground: var(--ink);
+  --card: var(--snow);
+  --card-foreground: var(--ink);
+  --popover: var(--snow);
+  --popover-foreground: var(--ink);
+  --primary: var(--walnut);
+  --primary-foreground: var(--snow);
+  --secondary: var(--sand-200);
+  --secondary-foreground: var(--ink);
+  --muted: var(--sand-200);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--sand-200);
+  --accent-foreground: var(--ink);
+  --destructive: var(--terracotta);
+  --success: var(--olive);
+  --warning: var(--amber);
+  --border: var(--sand-300);
+  --input: var(--sand-300);
+  --ring: var(--walnut);
+  --radius: 0.625rem;
+
+  --sidebar: var(--sand-50);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--walnut);
+  --sidebar-primary-foreground: var(--snow);
+  --sidebar-accent: var(--sand-200);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--sand-300);
+  --sidebar-ring: var(--walnut);
+
+  --shadow-soft: 0 1px 2px rgb(48 45 40 / 0.04), 0 2px 8px rgb(48 45 40 / 0.03);
+  --shadow-lifted: 0 1px 2px rgb(48 45 40 / 0.05), 0 6px 18px rgb(48 45 40 / 0.06);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
+  --font-mono: var(--font-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lifted: var(--shadow-lifted);
+
+  --animate-page-in: page-in 200ms ease-out both;
+  --animate-result-in: page-in 240ms ease-out both;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(7px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Superfície de leitura: branco neve, borda delicada e sombra quase impercetível. */
+@utility surface {
+  border-radius: calc(var(--radius) * 1.4);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+@utility surface-interactive {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+  &:hover {
+    border-color: color-mix(in oklab, var(--walnut) 35%, var(--sand-300));
+    box-shadow: var(--shadow-lifted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
