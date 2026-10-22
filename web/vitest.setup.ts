@@ -1,0 +1,21 @@
+import "@testing-library/jest-dom/vitest"
+import { cleanup } from "@testing-library/react"
+import { afterEach } from "vitest"
+
+afterEach(() => cleanup())
+
+// APIs de layout que o jsdom não implementa.
+if (typeof window !== "undefined") {
+  Element.prototype.scrollIntoView ??= () => {}
+  window.matchMedia ??= (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList
+}

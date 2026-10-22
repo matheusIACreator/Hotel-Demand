@@ -36,6 +36,29 @@ Package in `src/hotelml/`. The flow spans several modules:
 - **skops allowlist**: MLflow serializes sklearn models with skops, which refuses unknown types on load. `config.SKOPS_TRUSTED_TYPES` is an explicit allowlist passed to `log_model`; add to it when a new model/transformer type fails to load, never trust-all.
 - **Infra/CD**: `infra/` (Terraform, azurerm: Container Apps, ACR, AcrPull identity, logs, budget). `.github/workflows/ci.yml` (quality + terraform fmt/validate, also `workflow_call`) gates the manual `deploy.yml` (OIDC, digest-based deploy, smoke tests). Runbooks and ADRs are in `docs/`.
 
+## Frontend (`web/`)
+
+Next.js 16 + TypeScript + Tailwind + shadcn/ui (criado com `npx shadcn@latest init`). UI text is
+**PT-BR**. Read `web/AGENTS.md` and the bundled docs in `web/node_modules/next/dist/docs/` before
+changing Next.js code: this version differs from older training data.
+
+```bash
+cd web && npm install
+npm run dev | lint | format:check | typecheck | test | build
+npm run test:e2e        # Playwright + axe against the production build (run `npm run build` first)
+```
+
+- The browser never calls Azure: `app/api/health` and `app/api/predict` proxy to `HOTELML_API_URL`
+  (server-only env) with timeouts and explicit cold-start handling (`lib/server/hotelml-api.ts`).
+- Contract sync: `python scripts/export_openapi.py` writes `web/lib/contract/openapi.json`;
+  `tests/test_openapi_contract.py` fails if it is stale and `web/lib/contract/booking.test.ts`
+  compares the Zod schema with it. Changing a column now also means re-exporting this file.
+- `scripts/export_categories.py` (form options from the bundle's OneHotEncoder) and
+  `scripts/export_model_card.py` (historical metrics from the MLflow run + local dataset) generate
+  the JSON shown in the UI. Never hand-write metrics; operational indicators without a real data
+  source (drift, aggregated latency, volume, cost) stay without values.
+- Deploy target is Vercel with Root Directory `web`.
+
 ## Testing notes
 
 O módulo opcional `hotelml.spark` é testado num container com Java 21 e PySpark (`pipelines/Dockerfile`, target `test`), separado dos testes e da cobertura do núcleo. A preparação de features exige `booking_id` único e reutiliza `Booking` e `add_features`; consulte o ADR 0004 e o runbook de pipelines.

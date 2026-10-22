@@ -71,6 +71,15 @@ O exemplo tem ingress público de demonstração. Configuração, limitações e
 5. O modelo é registrado como `challenger` e só vira `champion` se superar o atual
    (ver `docs/adr/0002-registry-por-aliases.md`).
 
+## Interface web
+
+`web/` contém a interface em Next.js, TypeScript, Tailwind e shadcn/ui: visão geral com o estado
+real da API, simulador de cancelamento integrado a `/predict`, métricas históricas do modelo,
+pipeline em lote e arquitetura. O navegador fala apenas com rotas de servidor do Next.js, que
+chamam a API definida em `HOTELML_API_URL` e tratam a inicialização a frio da Container App.
+O schema do formulário é comparado com o OpenAPI exportado da FastAPI, e as métricas exibidas
+vêm do run MLflow. Comandos, testes e deploy na Vercel: [web/README.md](web/README.md).
+
 ## Pipelines de dados
 
 `hotelml features --input <parquet> --output <novo-diretório> --master 'local[2]'` prepara
@@ -101,6 +110,7 @@ docs/adr/      decisões de arquitetura
 infra/         Terraform Azure (fase 2)
 scripts/       smoke test da API local e publicada
 pipelines/     jobs Spark (fase 3)
+web/           interface Next.js (simulador, modelo, arquitetura)
 ```
 
 ## Decisões e pendências

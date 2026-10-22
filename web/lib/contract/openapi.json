@@ -1,0 +1,424 @@
+{
+  "components": {
+    "schemas": {
+      "Booking": {
+        "additionalProperties": false,
+        "properties": {
+          "adr": {
+            "exclusiveMaximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Adr",
+            "type": "number"
+          },
+          "adults": {
+            "minimum": 0.0,
+            "title": "Adults",
+            "type": "integer"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "arrival_date_day_of_month": {
+            "maximum": 31.0,
+            "minimum": 1.0,
+            "title": "Arrival Date Day Of Month",
+            "type": "integer"
+          },
+          "arrival_date_month": {
+            "title": "Arrival Date Month",
+            "type": "string"
+          },
+          "arrival_date_week_number": {
+            "maximum": 53.0,
+            "minimum": 1.0,
+            "title": "Arrival Date Week Number",
+            "type": "integer"
+          },
+          "babies": {
+            "minimum": 0.0,
+            "title": "Babies",
+            "type": "integer"
+          },
+          "booking_changes": {
+            "minimum": 0.0,
+            "title": "Booking Changes",
+            "type": "integer"
+          },
+          "children": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Children"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "customer_type": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Customer Type",
+            "type": "string"
+          },
+          "days_in_waiting_list": {
+            "minimum": 0.0,
+            "title": "Days In Waiting List",
+            "type": "integer"
+          },
+          "deposit_type": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Deposit Type",
+            "type": "string"
+          },
+          "distribution_channel": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Distribution Channel",
+            "type": "string"
+          },
+          "hotel": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Hotel",
+            "type": "string"
+          },
+          "is_repeated_guest": {
+            "enum": [
+              0,
+              1
+            ],
+            "title": "Is Repeated Guest",
+            "type": "integer"
+          },
+          "lead_time": {
+            "minimum": 0.0,
+            "title": "Lead Time",
+            "type": "integer"
+          },
+          "market_segment": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Market Segment",
+            "type": "string"
+          },
+          "meal": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Meal",
+            "type": "string"
+          },
+          "previous_bookings_not_canceled": {
+            "minimum": 0.0,
+            "title": "Previous Bookings Not Canceled",
+            "type": "integer"
+          },
+          "previous_cancellations": {
+            "minimum": 0.0,
+            "title": "Previous Cancellations",
+            "type": "integer"
+          },
+          "required_car_parking_spaces": {
+            "minimum": 0.0,
+            "title": "Required Car Parking Spaces",
+            "type": "integer"
+          },
+          "reserved_room_type": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reserved Room Type",
+            "type": "string"
+          },
+          "stays_in_week_nights": {
+            "minimum": 0.0,
+            "title": "Stays In Week Nights",
+            "type": "integer"
+          },
+          "stays_in_weekend_nights": {
+            "minimum": 0.0,
+            "title": "Stays In Weekend Nights",
+            "type": "integer"
+          },
+          "total_of_special_requests": {
+            "minimum": 0.0,
+            "title": "Total Of Special Requests",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hotel",
+          "lead_time",
+          "arrival_date_month",
+          "arrival_date_week_number",
+          "arrival_date_day_of_month",
+          "stays_in_weekend_nights",
+          "stays_in_week_nights",
+          "adults",
+          "children",
+          "babies",
+          "meal",
+          "country",
+          "market_segment",
+          "distribution_channel",
+          "is_repeated_guest",
+          "previous_cancellations",
+          "previous_bookings_not_canceled",
+          "reserved_room_type",
+          "booking_changes",
+          "deposit_type",
+          "agent",
+          "company",
+          "days_in_waiting_list",
+          "customer_type",
+          "adr",
+          "required_car_parking_spaces",
+          "total_of_special_requests"
+        ],
+        "title": "Booking",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "PredictRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bookings": {
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Bookings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "bookings"
+        ],
+        "title": "PredictRequest",
+        "type": "object"
+      },
+      "PredictResponse": {
+        "properties": {
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "predictions": {
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            },
+            "title": "Predictions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "model_name",
+          "model_version",
+          "predictions"
+        ],
+        "title": "PredictResponse",
+        "type": "object"
+      },
+      "Prediction": {
+        "properties": {
+          "cancellation_probability": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Cancellation Probability",
+            "type": "number"
+          },
+          "is_canceled": {
+            "title": "Is Canceled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cancellation_probability",
+          "is_canceled"
+        ],
+        "title": "Prediction",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "hotelml",
+    "version": "0.2.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "live_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Live Health Live Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live"
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Ready Health Ready Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready"
+      }
+    },
+    "/predict": {
+      "post": {
+        "operationId": "predict_predict_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Predict"
+      }
+    }
+  }
+}
