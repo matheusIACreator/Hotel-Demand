@@ -59,8 +59,8 @@ jobs:
       - name: Construir ambiente de integração Spark
         run: docker build -f pipelines/Dockerfile --target test --build-arg HOTELML_IMAGE=hotelml:ci -t hotelml:spark-test .
 
-      - name: Validar features distribuídas
-        run: docker run --rm -v "$PWD/tests:/tests:ro" hotelml:spark-test -c /app/pyproject.toml /tests/test_spark_features.py -o cache_dir=/tmp/pytest-cache
+      - name: Validar features e scoring distribuídos
+        run: docker run --rm -v "$PWD/tests:/tests:ro" hotelml:spark-test -c /app/pyproject.toml /tests/test_spark.py -o cache_dir=/tmp/pytest-cache
 
       - name: Logs do container
         if: always()

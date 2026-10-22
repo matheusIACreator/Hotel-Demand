@@ -20,4 +20,4 @@ COPY requirements-dev.lock ./
 RUN pip install --no-cache-dir -r requirements-dev.lock
 USER hotelml
 ENTRYPOINT ["python", "-m", "pytest"]
-CMD ["/tests/test_spark_features.py", "-q", "-o", "cache_dir=/tmp/pytest-cache"]
+CMD ["/tests/test_spark.py", "-q", "-o", "cache_dir=/tmp/pytest-cache"]

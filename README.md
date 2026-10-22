@@ -10,7 +10,7 @@ alertas e operação, com infraestrutura em código na Azure.
 |---|---|---|
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
 | 2 | API FastAPI em container + Terraform na Azure + CD | implementada; deploy Azure por validar |
-| 3 | Feature pipeline e batch scoring em PySpark | preparação de features implementada; scoring em desenvolvimento |
+| 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
 | 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | pendente |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
 | 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
@@ -82,6 +82,15 @@ Spark e Java são opcionais e têm um container próprio. Comandos e testes no
 A preparação foi executada pela CLI sobre 200 reservas sintéticas, produzindo Parquet com
 200 IDs únicos e 33 colunas. A integração Spark compara as features com o pipeline sklearn e
 testa a rejeição de IDs inválidos, dados fora do contrato e sobrescrita de saídas.
+
+`hotelml batch --input <parquet> --output <novo-diretório> --bundle <snapshot> --master 'local[2]'`
+calcula previsões com o pipeline completo. O snapshot é distribuído aos executores Spark,
+carregado uma vez por partição e identificado em cada previsão. A saída contém ID, probabilidade,
+decisão, nome/versão do modelo, limiar, identificação do lote e horário UTC.
+
+Os testes de integração Spark verificam a paridade das features e previsões com sklearn,
+a preservação dos IDs, a reutilização do modelo entre lotes Arrow e as saídas sem sobrescrita.
+Não foi provisionado um cluster nem um agendamento de jobs na Azure.
 
 ## Estrutura
 

@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 import mlflow
 import mlflow.sklearn
@@ -20,6 +18,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from hotelml.bundle import LoadedModel, load_bundle
 from hotelml.config import ADR_MAX, INPUT_COLUMNS, MONTH_TO_NUM, Settings
 
 log = logging.getLogger(__name__)
@@ -82,21 +81,11 @@ class PredictResponse(BaseModel):
     predictions: list[Prediction]
 
 
-@dataclass(frozen=True)
-class LoadedModel:
-    model: Any
-    name: str
-    version: str
-
-
 def load_serving_model() -> LoadedModel:
     load_dotenv(override=False)
     bundle = os.environ.get("MODEL_BUNDLE")
     if bundle:
-        root = Path(bundle)
-        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-        model = mlflow.sklearn.load_model(str(root / "model"))
-        return LoadedModel(model, manifest["model_name"], manifest["model_version"])
+        return load_bundle(Path(bundle))
     settings = Settings()
     mlflow.set_tracking_uri(settings.tracking_uri)
     mlflow.set_registry_uri(settings.tracking_uri)
