@@ -2,6 +2,8 @@
 !pyproject.toml
 !README.md
 !requirements.lock
+!requirements-dev.lock
+!requirements-spark.lock
 !src/
 !src/hotelml/
 !src/hotelml/*.py

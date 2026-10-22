@@ -21,6 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+spark = ["pyspark==4.2.0"]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
@@ -59,3 +60,7 @@ filterwarnings = [
     "ignore::FutureWarning",
     "ignore::UserWarning",
 ]
+
+[tool.coverage.run]
+# O módulo opcional Spark é exercitado num job de integração com JVM, separado do núcleo.
+omit = ["*/hotelml/spark.py"]

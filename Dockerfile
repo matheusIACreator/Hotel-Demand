@@ -8,10 +8,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp
 WORKDIR /app
 COPY pyproject.toml README.md ./
-COPY src ./src
 COPY requirements.lock ./
-RUN pip install --no-cache-dir -r requirements.lock \
-    && pip install --no-cache-dir --no-deps . \
+RUN pip install --no-cache-dir -r requirements.lock
+COPY src ./src
+RUN pip install --no-cache-dir --no-deps . \
     && useradd --uid 10001 --create-home hotelml
 COPY --chown=hotelml:hotelml model-bundle ./model-bundle
 USER hotelml

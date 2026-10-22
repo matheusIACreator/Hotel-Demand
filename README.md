@@ -10,7 +10,7 @@ alertas e operação, com infraestrutura em código na Azure.
 |---|---|---|
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
 | 2 | API FastAPI em container + Terraform na Azure + CD | implementada; deploy Azure por validar |
-| 3 | Feature pipeline e batch scoring em PySpark | pendente |
+| 3 | Feature pipeline e batch scoring em PySpark | preparação de features implementada; scoring em desenvolvimento |
 | 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | pendente |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
 | 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
@@ -70,6 +70,18 @@ O exemplo tem ingress público de demonstração. Configuração, limitações e
    de entrada e uma amostra de referência (base do detector de drift).
 5. O modelo é registrado como `challenger` e só vira `champion` se superar o atual
    (ver `docs/adr/0002-registry-por-aliases.md`).
+
+## Pipelines de dados
+
+`hotelml features --input <parquet> --output <novo-diretório> --master 'local[2]'` prepara
+reservas com PySpark. A origem exige `booking_id` único e `INPUT_COLUMNS`; o job reutiliza a
+validação e as features da API, preservando os IDs e excluindo alvo/colunas de vazamento.
+Spark e Java são opcionais e têm um container próprio. Comandos e testes no
+[runbook de pipelines](docs/runbooks/pipelines-spark.md).
+
+A preparação foi executada pela CLI sobre 200 reservas sintéticas, produzindo Parquet com
+200 IDs únicos e 33 colunas. A integração Spark compara as features com o pipeline sklearn e
+testa a rejeição de IDs inválidos, dados fora do contrato e sobrescrita de saídas.
 
 ## Estrutura
 

@@ -16,7 +16,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +54,13 @@ jobs:
           docker run -d --name hotelml-ci -p 8000:8000 hotelml:ci
           VERSION=$(python -c "import json; print(json.load(open('model-bundle/manifest.json'))['model_version'])")
           python scripts/smoke_api.py http://127.0.0.1:8000 --version "$VERSION"
+          docker stop hotelml-ci
+
+      - name: Construir ambiente de integração Spark
+        run: docker build -f pipelines/Dockerfile --target test --build-arg HOTELML_IMAGE=hotelml:ci -t hotelml:spark-test .
+
+      - name: Validar features distribuídas
+        run: docker run --rm -v "$PWD/tests:/tests:ro" hotelml:spark-test -c /app/pyproject.toml /tests/test_spark_features.py -o cache_dir=/tmp/pytest-cache
 
       - name: Logs do container
         if: always()

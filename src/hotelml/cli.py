@@ -25,6 +25,18 @@ def _cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_features(args: argparse.Namespace) -> int:
+    from hotelml.spark import create_spark, run_features
+
+    spark = create_spark(args.master)
+    try:
+        result = run_features(spark, args.input, args.output)
+        print(json.dumps(result, indent=2))
+    finally:
+        spark.stop()
+    return 0
+
+
 def _cmd_train(args: argparse.Namespace) -> int:
     settings = Settings()
     raw = load_raw(args.source, settings, synthetic_rows=args.rows)
@@ -98,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export", help="exporta o champion para uma imagem de serving")
     export.add_argument("--output", default="model-bundle")
     export.set_defaults(func=_cmd_export)
+    features = sub.add_parser("features", help="prepara reservas em Parquet com PySpark")
+    features.add_argument("--input", required=True, help="Parquet com booking_id e INPUT_COLUMNS")
+    features.add_argument("--output", required=True, help="diretório novo de Parquet")
+    features.add_argument("--master", help="master Spark; exemplo local[2]")
+    features.set_defaults(func=_cmd_features)
     return parser
 
 

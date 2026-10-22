@@ -4,7 +4,7 @@ This file provides guidance to Codex (claude.ai/code) when working with code in 
 
 ## Project
 
-`hotelml`: reference MLOps platform that predicts hotel booking cancellations (training, MLflow registry, FastAPI serving, Azure infra via Terraform). Docs, comments and commit/ADR text are written in Portuguese; keep new prose in Portuguese to match. Phases 3–6 (PySpark, monitoring, LLMOps) are not implemented yet; see the table in [README.md](README.md).
+`hotelml`: reference MLOps platform that predicts hotel booking cancellations (training, MLflow registry, FastAPI serving, Azure infra via Terraform). Docs, comments and commit/ADR text are written in Portuguese; keep new prose in Portuguese to match. A preparação de features da fase 3 está implementada; scoring e fases 4–6 continuam em desenvolvimento. Consulte a tabela em [README.md](README.md).
 
 ## Commands
 
@@ -37,5 +37,7 @@ Package in `src/hotelml/`. The flow spans several modules:
 - **Infra/CD**: `infra/` (Terraform, azurerm: Container Apps, ACR, AcrPull identity, logs, budget). `.github/workflows/ci.yml` (quality + terraform fmt/validate, also `workflow_call`) gates the manual `deploy.yml` (OIDC, digest-based deploy, smoke tests). Runbooks and ADRs are in `docs/`.
 
 ## Testing notes
+
+O módulo opcional `hotelml.spark` é testado num container com Java 21 e PySpark (`pipelines/Dockerfile`, target `test`), separado dos testes e da cobertura do núcleo. A preparação de features exige `booking_id` único e reutiliza `Booking` e `add_features`; consulte o ADR 0004 e o runbook de pipelines.
 
 Tests use synthetic data (`make_synthetic`) and a per-test temporary SQLite MLflow via the `settings` fixture in `tests/conftest.py`, so they need no network. Ruff rules: E, F, I, UP, B, SIM, line length 100, Python ≥3.11 (CI uses 3.12).
