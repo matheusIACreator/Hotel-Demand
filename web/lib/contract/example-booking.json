@@ -1,0 +1,32 @@
+{
+  "source": "Reserva sintética gerada por make_synthetic(n=1, seed=7) do pacote hotelml; adr arredondado para 2 casas.",
+  "booking": {
+    "hotel": "City Hotel",
+    "lead_time": 104,
+    "arrival_date_month": "July",
+    "arrival_date_week_number": 28,
+    "arrival_date_day_of_month": 16,
+    "stays_in_weekend_nights": 0,
+    "stays_in_week_nights": 1,
+    "adults": 1,
+    "children": 0,
+    "babies": 0,
+    "meal": "BB",
+    "country": "BRA",
+    "market_segment": "Online TA",
+    "distribution_channel": "Direct",
+    "is_repeated_guest": 0,
+    "previous_cancellations": 0,
+    "previous_bookings_not_canceled": 0,
+    "reserved_room_type": "A",
+    "booking_changes": 0,
+    "deposit_type": "No Deposit",
+    "agent": 153,
+    "company": null,
+    "days_in_waiting_list": 0,
+    "customer_type": "Transient",
+    "adr": 119.59,
+    "required_car_parking_spaces": 0,
+    "total_of_special_requests": 0
+  }
+}

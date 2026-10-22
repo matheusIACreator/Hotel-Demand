@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
+import { ApiStatus } from "@/components/api-status"
 import { PageHeader, Section } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { NAV_ITEMS } from "@/lib/navigation"
@@ -33,6 +34,13 @@ export default function Page() {
       />
 
       <div className="space-y-12">
+        <Section
+          title="Estado da API"
+          description="Consulta em tempo real a /health/ready da API publicada na Azure."
+        >
+          <ApiStatus />
+        </Section>
+
         <Section
           title="O que o modelo faz"
           description="Uma estimativa, não uma certeza."
