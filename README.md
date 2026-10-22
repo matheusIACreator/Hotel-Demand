@@ -4,12 +4,12 @@ Previsão de cancelamento de reservas de hotel, usada como pretexto para constru
 ciclo completo de ML em produção: dados, treino reprodutível, registry, serving, monitoramento,
 alertas e operação, com infraestrutura em código na Azure.
 
-## Estado atual: fundação e implementação da fase 2
+## Estado atual: API publicada e pipelines Spark validados
 
 | Fase | Conteúdo | Estado |
 |---|---|---|
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
-| 2 | API FastAPI em container + Terraform na Azure + CD | implementada; deploy Azure por validar |
+| 2 | API FastAPI em container + Terraform na Azure + CD | API publicada e validada; configuração do CD pendente |
 | 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
 | 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | pendente |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
@@ -125,12 +125,28 @@ O HistGradientBoosting foi registado como versão 1 no registry local e exportad
 
 Um smoke test HTTP com esse bundle confirmou readiness e três previsões válidas, incluindo
 a versão do modelo na resposta. Estes resultados descrevem este dataset e esta divisão;
-não medem desempenho em tráfego de produção. O deploy Azure continua pendente.
+não medem desempenho em tráfego de produção.
 
 Em 2026-10-22, a imagem Docker Linux foi construída e validada com esse modelo: readiness e
 três previsões HTTP passaram, o processo executou com UID 10001 e a imagem não contém `.env`
 nem a base SQLite local. O container de teste foi encerrado após a validação.
 
-Validação local da implementação: 39 testes passaram, com 97,33% de cobertura; Ruff, verificação
-de formatação, mypy e `terraform validate` passaram. Os workflows estão preparados, mas ainda
-não foram executados no GitHub Actions nesta implementação.
+Validação da implementação: 43 testes do núcleo passaram, com 94,79% de cobertura, e 20 testes
+de integração Spark passaram no container. O módulo Spark opcional é validado separadamente
+e não entra nessa percentagem de cobertura. Ruff, formatação, mypy e Terraform passaram;
+o GitHub Actions também executou com sucesso o CI, incluindo os testes Spark e o smoke Docker.
+
+## Deploy Azure validado em 2026-10-22
+
+A API foi publicada em North Europe pelo Terraform, com o modelo versão 1 e imagem do ACR
+fixada por digest. O smoke test HTTPS confirmou readiness e três previsões válidas:
+[documentação interativa da API](https://api-hotelml-dev.mangoplant-1a4839a2.northeurope.azurecontainerapps.io/docs).
+
+O grupo de recursos mantém os metadados em West Europe; os serviços ficam em North Europe,
+pois a Azure recusou novos recursos em West Europe para esta subscrição. O ambiente usa
+Consumption, com 0–1 réplicas, identidade `AcrPull` e alertas de orçamento a 50%, 80% e 100%.
+O orçamento mensal é 20 na moeda da subscrição e não interrompe os recursos.
+
+O deploy foi realizado localmente. O workflow de CD continua dependente da configuração
+da identidade OIDC, das variáveis do GitHub e de um registry MLflow remoto acessível ao runner;
+consulte o [runbook](docs/runbooks/deploy-azure.md).
