@@ -104,7 +104,11 @@ O HistGradientBoosting foi registado como versão 1 no registry local e exportad
 
 Um smoke test HTTP com esse bundle confirmou readiness e três previsões válidas, incluindo
 a versão do modelo na resposta. Estes resultados descrevem este dataset e esta divisão;
-não medem desempenho em tráfego de produção. O deploy Azure e o teste Docker continuam pendentes.
+não medem desempenho em tráfego de produção. O deploy Azure continua pendente.
+
+Em 2026-10-22, a imagem Docker Linux foi construída e validada com esse modelo: readiness e
+três previsões HTTP passaram, o processo executou com UID 10001 e a imagem não contém `.env`
+nem a base SQLite local. O container de teste foi encerrado após a validação.
 
 Validação local da implementação: 39 testes passaram, com 97,33% de cobertura; Ruff, verificação
 de formatação, mypy e `terraform validate` passaram. Os workflows estão preparados, mas ainda
