@@ -4,7 +4,7 @@ locals {
 
 resource "azurerm_resource_group" "main" {
   name     = "rg-${var.name}"
-  location = var.location
+  location = coalesce(var.resource_group_location, var.location)
   tags     = local.tags
 }
 

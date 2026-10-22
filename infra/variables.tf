@@ -15,7 +15,13 @@ variable "name" {
 
 variable "location" {
   type    = string
-  default = "westeurope"
+  default = "northeurope"
+}
+
+variable "resource_group_location" {
+  type        = string
+  default     = null
+  description = "Região dos metadados do grupo existente; por omissão usa location."
 }
 
 variable "registry_name" {

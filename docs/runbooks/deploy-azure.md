@@ -46,6 +46,13 @@ namespaces necessários, incluindo `Microsoft.App`, em vez do conjunto legacy do
 Esse registo pode atrasar o primeiro `plan`, sem criar os recursos do laboratório.
 O orçamento usa a moeda de faturação, não assume USD.
 
+O exemplo usa North Europe. A Microsoft restringe West Europe para novos clientes
+([erro de elegibilidade regional](https://learn.microsoft.com/en-us/azure/azure-resource-manager/troubleshooting/error-region-access-policy)).
+Se uma aplicação parcial já criou o grupo em outra região, preserve a sua localização com
+`resource_group_location = "westeurope"` e altere `location` para a região dos serviços.
+Reveja o novo plano: mudar a região dos metadados do grupo implica substituição, enquanto
+esta separação permite conservar o grupo e o orçamento. Não altere o estado manualmente.
+
 ```powershell
 az login
 az account set --subscription '<subscription-id>'
