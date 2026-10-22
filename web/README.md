@@ -14,6 +14,10 @@ npm test               # Vitest
 npm run build
 ```
 
+O CI usa `npm ci`, que exige o `package-lock.json` em sincronia. Atualize o lock com npm 11.21 ou
+mais recente (por exemplo `npx npm@11 install`): o npm 11.6 omitia dependências opcionais de
+outras plataformas, como `@emnapi/*`, e o `npm ci` no Linux falhava.
+
 ## Identidade visual
 
 Os tokens ficam em `app/globals.css`: bege `#F7F4EE` como fundo, branco neve `#FFFDFA` nas
