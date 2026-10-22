@@ -24,7 +24,7 @@ def main() -> None:
                 ready = json.load(response)
             if ready["model_version"] == args.version:
                 break
-        except (urllib.error.URLError, TimeoutError):
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
             pass
         if attempt == 59:
             raise SystemExit("API não ficou pronta com a versão esperada")
