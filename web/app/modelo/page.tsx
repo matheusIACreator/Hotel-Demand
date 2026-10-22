@@ -60,7 +60,7 @@ const DECISIONS = [
   },
   {
     title: "Snapshot imutável no serving",
-    text: "A API carrega um bundle com versão explícita no arranque; trocar aliases no registry não muda o modelo em execução.",
+    text: "A API carrega um bundle com versão explícita na inicialização; trocar aliases no registry não muda o modelo em execução.",
     href: DOCS.adrServing,
     adr: "ADR 0003",
   },
