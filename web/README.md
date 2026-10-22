@@ -49,3 +49,33 @@ durante até 3 minutos e para assim que a API fica pronta, para não manter a r�
   do dataset real.
 - O limiar de decisão (0,5) está fixo em `src/hotelml/api.py` e não vem na resposta da API;
   `DECISION_THRESHOLD` replica esse valor.
+
+## Testes end-to-end e acessibilidade
+
+```bash
+npm run build
+npm run test:e2e       # Playwright em desktop e celular, contra o build de produção
+```
+
+As rotas `/api/*` são simuladas no navegador, então os testes não chamam a Azure. Cada página é
+verificada com axe (WCAG 2.1 A/AA) com `prefers-reduced-motion`, para avaliar as cores finais e
+não um quadro da animação. Os testes cobrem também o fluxo do simulador, a inicialização a frio,
+o envio pelo teclado, o link "Pular para o conteúdo", o menu do celular e a página 404.
+
+## Deploy na Vercel
+
+1. Importe o repositório na Vercel e defina **Root Directory** como `web` (framework Next.js).
+2. Em *Environment Variables*, crie `HOTELML_API_URL` com a URL da API, sem barra final, para
+   Production e Preview. A variável só é lida no servidor; nunca use o prefixo `NEXT_PUBLIC_`.
+3. Os previews de cada pull request chamam a mesma API pública de demonstração.
+
+A primeira previsão depois de uma pausa pode esperar a Container App sair de zero réplicas; a
+interface mostra "Iniciando o serviço…" e repete a previsão quando a API fica pronta.
+
+## Dados exibidos
+
+Nenhum número é escrito à mão. As métricas da página Modelo vêm de
+`python scripts/export_model_card.py`, que lê o run MLflow da versão registada e falha se o
+dataset local não reproduzir a divisão do treino. Ao promover outra versão, exporte de novo o
+cartão, as categorias e o contrato; `lib/model-card.test.ts` exige que cartão e categorias
+descrevam a mesma versão. A página também permite conferir a versão carregada na API.

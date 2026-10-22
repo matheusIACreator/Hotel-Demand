@@ -85,6 +85,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Testes end-to-end e acessibilidade (axe)
+        run: npm run test:e2e
 
   terraform:
     runs-on: ubuntu-latest

@@ -44,7 +44,10 @@ describe("paleta", () => {
     ).toBeGreaterThanOrEqual(4.5)
   })
 
-  it("texto do botão principal atinge AA", () => {
+  it("texto do botão principal atinge AA, também no hover", () => {
+    expect(
+      contrastRatio(palette.snow, palette["walnut-deep"])
+    ).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(palette.snow, palette.walnut)).toBeGreaterThanOrEqual(
       4.5
     )

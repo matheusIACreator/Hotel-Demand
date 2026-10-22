@@ -15,6 +15,7 @@
   --ink: #302d28; /* texto principal */
   --ink-muted: #6c645a; /* texto secundário (#71695f escurecido para AA sobre areia) */
   --walnut: #655541; /* ação principal */
+  --walnut-deep: #574937; /* hover da ação principal: escurece em vez de clarear */
   --olive: #526b55; /* sucesso */
   --amber: #936522; /* atenção */
   --terracotta: #a34f46; /* erro */
@@ -27,6 +28,7 @@
   --popover-foreground: var(--ink);
   --primary: var(--walnut);
   --primary-foreground: var(--snow);
+  --primary-hover: var(--walnut-deep);
   --secondary: var(--sand-200);
   --secondary-foreground: var(--ink);
   --muted: var(--sand-200);
@@ -82,6 +84,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
