@@ -1,0 +1,35 @@
+{
+  "source": {
+    "description": "Run MLflow da versão registada e dataset local usado no treino.",
+    "model_name": "hotel-cancellation",
+    "model_version": "1",
+    "run_id": "7f9a2733a8c7497282ea957eac8f0937",
+    "trained_at": "2026-10-21T21:51:18.588000+00:00",
+    "exported_at": "2026-10-22"
+  },
+  "estimator": "hgb",
+  "dataset": {
+    "name": "gemuchu/hotel_bookings",
+    "url": "https://huggingface.co/datasets/gemuchu/hotel_bookings",
+    "data_source": "hf",
+    "raw_rows": 119390,
+    "removed_rows": 182,
+    "train_rows": 95366,
+    "test_rows": 23842,
+    "train_start": "2015-07-01",
+    "train_end": "2017-04-22",
+    "test_start": "2017-04-22",
+    "test_end": "2017-08-31",
+    "test_cutoff": "2017-04-22",
+    "train_cancel_rate": 0.3613,
+    "test_cancel_rate": 0.4085
+  },
+  "metrics": {
+    "roc_auc": 0.8613684025358531,
+    "pr_auc": 0.8233699179526311,
+    "f1": 0.6935586550147578,
+    "accuracy": 0.7779129267678886,
+    "brier": 0.15690207205691947,
+    "log_loss": 0.46382070965472744
+  }
+}
