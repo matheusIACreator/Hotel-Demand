@@ -91,9 +91,13 @@ Entra com credencial federada para:
 
 ```text
 issuer: https://token.actions.githubusercontent.com
-subject: repo:matheusIACreator/Hotel-Demand:environment:azure-dev
+subject: repo:matheusIACreator@224650895/Hotel-Demand@1428949967:environment:azure-dev
 audience: api://AzureADTokenExchange
 ```
+
+Use o `subject` exato emitido pelo GitHub. Neste repositório, ele inclui os IDs numéricos do
+proprietário e do repositório, conforme acima. O formato antigo sem os IDs falhou com
+`AADSTS700213` na validação de 2026-10-23; o erro do login informa o valor efetivamente emitido.
 
 Conceda à identidade do CD `AcrPush` no ACR e `Container Apps Contributor` no resource group.
 Para `az acr show`, conceda também `Reader` no ACR. A aplicação usa uma identidade separada
