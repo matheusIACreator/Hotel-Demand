@@ -2,6 +2,16 @@ name: Deploy Azure
 
 on:
   workflow_dispatch:
+    inputs:
+      model_release:
+        description: 'Tag da release com model-bundle.tar.gz (vazio usa MLflow remoto)'
+        type: string
+      model_sha256:
+        description: 'SHA-256 aprovado do bundle da release'
+        type: string
+      model_version:
+        description: 'Versão aprovada do modelo da release'
+        type: string
 
 permissions:
   contents: read
@@ -32,6 +42,9 @@ jobs:
       ACR_NAME: ${{ vars.ACR_NAME }}
       RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       APP_NAME: ${{ vars.AZURE_APP_NAME }}
+      MODEL_RELEASE: ${{ inputs.model_release }}
+      MODEL_SHA256: ${{ inputs.model_sha256 }}
+      MODEL_VERSION: ${{ inputs.model_version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,14 +55,20 @@ jobs:
 
       - name: Verificar configuração
         run: |
-          test -n "$MLFLOW_TRACKING_URI"
           test -n "$ACR_NAME"
           test -n "$RESOURCE_GROUP"
           test -n "$APP_NAME"
-          case "$MLFLOW_TRACKING_URI" in
-            https://*) ;;
-            *) echo 'CD requer registry MLflow remoto por HTTPS'; exit 1 ;;
-          esac
+          if [ -n "$MODEL_RELEASE" ]; then
+            test -n "$MODEL_VERSION"
+            [[ "$MODEL_SHA256" =~ ^[a-fA-F0-9]{64}$ ]]
+          else
+            test -z "$MODEL_SHA256"
+            test -z "$MODEL_VERSION"
+            case "$MLFLOW_TRACKING_URI" in
+              https://*) ;;
+              *) echo 'Informe uma release aprovada ou um registry MLflow HTTPS'; exit 1 ;;
+            esac
+          fi
 
       - run: |
           pip install -r requirements.lock
@@ -62,7 +81,16 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Exportar champion aprovado
+        if: inputs.model_release == ''
         run: hotelml export --output model-bundle
+
+      - name: Recuperar bundle aprovado da release
+        if: inputs.model_release != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$MODEL_RELEASE" --repo "$GITHUB_REPOSITORY" --pattern model-bundle.tar.gz --dir release-input
+          python scripts/model_release.py unpack --archive release-input/model-bundle.tar.gz --sha256 "$MODEL_SHA256" --version "$MODEL_VERSION"
 
       - name: Construir, verificar e publicar imagem
         id: image
@@ -85,6 +113,8 @@ jobs:
           IMAGE: ${{ steps.image.outputs.uri }}
           VERSION: ${{ steps.image.outputs.version }}
         run: |
+          PREVIOUS=$(az containerapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --query 'properties.template.containers[0].image' -o tsv)
+          echo "Imagem anterior para rollback: $PREVIOUS" >> "$GITHUB_STEP_SUMMARY"
           az containerapp update --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --image "$IMAGE"
           FQDN=$(az containerapp show --name "$APP_NAME" --resource-group "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
           python scripts/smoke_api.py "https://$FQDN" --version "$VERSION"

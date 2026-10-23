@@ -127,3 +127,36 @@ O budget alerta a 50%, 80% e 100%; não interrompe recursos nem garante preserva
 ACR e logs têm custos independentes da escala a zero. Confirme os alertas no portal e acompanhe
 Cost Management. Para encerrar o laboratório, reveja `terraform -chdir=infra plan -destroy` e
 depois execute `terraform -chdir=infra destroy`, aceitando a remoção dos recursos e imagens.
+
+## Bundle aprovado em uma release (sem MLflow remoto)
+
+O CD aceita duas origens: o champion de um MLflow HTTPS ou um bundle aprovado em uma release
+GitHub deste repositório. A segunda opção permite usar o registry local no treino e publicar
+somente o snapshot, sem provisionar um servidor MLflow.
+
+1. Exporte o champion para `model-bundle/` e valide o container local com `scripts/smoke_api.py`.
+2. Empacote apenas o modelo e o manifesto:
+
+   ```powershell
+   python scripts/model_release.py pack --output model-bundle.tar.gz
+   ```
+
+   Anote o SHA-256 exibido. Publique `model-bundle.tar.gz` como asset de uma release identificada
+   por uma tag única (por exemplo `model-v1`). Não substitua assets de uma release aprovada.
+3. Execute **Deploy Azure** na `main`, preenchendo `model_release`, `model_sha256` e
+   `model_version`. O workflow baixa o asset do próprio repositório, verifica o checksum, a
+   versão e os caminhos antes de extrair e construir a imagem. O smoke test confirma que o
+   modelo carrega e responde antes de publicar.
+
+Nesse modo, as variáveis/secrets MLflow são dispensáveis; OIDC e as variáveis Azure continuam
+obrigatórias. Checksum e versão devem vir da aprovação do bundle, não de um arquivo baixado
+junto com ele. O resumo do deploy registra também a imagem anterior para rollback.
+
+## Frontend e CI
+
+Na Vercel, configure Root Directory `web`, framework Next.js e Production Branch `main`.
+`HOTELML_API_URL` deve existir em Production e Preview. Branches e PRs geram previews; `main`
+publica em produção pela integração Git. O CI GitHub verifica separadamente o frontend.
+
+O grupo de concorrência do CI inclui o nome do workflow: uma execução comum de CI não cancela
+as verificações chamadas pelo deploy. Falhas end-to-end preservam os traces por sete dias.
