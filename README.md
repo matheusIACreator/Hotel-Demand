@@ -4,12 +4,12 @@ Previsão de cancelamento de reservas de hotel, usada como pretexto para constru
 ciclo completo de ML em produção: dados, treino reprodutível, registry, serving, monitoramento,
 alertas e operação, com infraestrutura em código na Azure.
 
-## Estado atual: API publicada e pipelines Spark validados
+## Estado atual: frontend publicado, API com CD e pipelines Spark validados
 
 | Fase | Conteúdo | Estado |
 |---|---|---|
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
-| 2 | API FastAPI em container + Terraform na Azure + CD | API publicada e validada; configuração do CD pendente |
+| 2 | API FastAPI em container + Terraform na Azure + CD | API publicada; CD configurado com OIDC e bundle aprovado |
 | 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
 | 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | pendente |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
@@ -57,7 +57,7 @@ exigem reinício ou novo deploy; consulte o [ADR 0003](docs/adr/0003-serving-e-d
 
 `infra/` cria Container Apps (0–1 réplicas), ACR, identidade com `AcrPull`, logs e orçamento.
 O workflow manual **Deploy Azure** usa OIDC, CI obrigatório, smoke tests e deploy por digest.
-O primeiro deploy pode ser local; o CD requer um MLflow remoto com champion acessível ao runner.
+O CD aceita um bundle aprovado de uma release GitHub ou um MLflow HTTPS acessível ao runner.
 O exemplo tem ingress público de demonstração. Configuração, limitações e controlo de custos:
 [runbook de deploy](docs/runbooks/deploy-azure.md).
 
@@ -157,9 +157,10 @@ pois a Azure recusou novos recursos em West Europe para esta subscrição. O amb
 Consumption, com 0–1 réplicas, identidade `AcrPull` e alertas de orçamento a 50%, 80% e 100%.
 O orçamento mensal é 20 na moeda da subscrição e não interrompe os recursos.
 
-O deploy foi realizado localmente. O workflow de CD continua dependente da configuração
-da identidade OIDC, das variáveis do GitHub e de um registry MLflow remoto acessível ao runner;
-consulte o [runbook](docs/runbooks/deploy-azure.md).
+O primeiro deploy foi realizado localmente. Em 2026-10-23, o ambiente `azure-dev` foi
+configurado no GitHub, restrito à `main`, com identidade OIDC e permissões para publicar no ACR
+e atualizar a Container App. O bundle da versão 1 está na release `model-v1`; consulte o
+[runbook](docs/runbooks/deploy-azure.md).
 
 ## CI/CD do frontend
 
@@ -169,5 +170,5 @@ acessibilidade; as métricas históricas exportadas em `web/lib/data/model-card.
 versionadas para que um checkout limpo reproduza o build.
 
 O CD da API aceita tanto um registry MLflow HTTPS quanto um bundle de release aprovada com
-SHA-256 e versão explícita. Configuração OIDC e validação do primeiro deploy automatizado
-continuam necessárias para considerar o CD concluído; consulte o runbook de deploy.
+SHA-256 e versão explícita. OIDC e variáveis Azure estão configurados no ambiente `azure-dev`;
+o workflow executa CI, smoke test da imagem e smoke test do endpoint publicado.

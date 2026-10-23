@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`hotelml`: reference MLOps platform that predicts hotel booking cancellations (training, MLflow registry, FastAPI serving, Azure infra via Terraform). Docs, comments and commit/ADR text are written in Portuguese; keep new prose in Portuguese to match. Phases 3–6 (PySpark, monitoring, LLMOps) are not implemented yet; see the table in [README.md](README.md).
+`hotelml`: reference MLOps platform that predicts hotel booking cancellations (training, MLflow registry, FastAPI serving, Azure infra via Terraform). Docs, comments and commit/ADR text are written in Portuguese; keep new prose in Portuguese to match. A fase 3 (features e scoring PySpark) está implementada; as fases 4–6 continuam pendentes. Consulte a tabela em [README.md](README.md).
 
 ## Commands
 
@@ -35,6 +35,11 @@ Package in `src/hotelml/`. The flow spans several modules:
 - **Serving** (`api.py`, `bundle.py`, ADR 0003): `hotelml export` resolves `champion` once to an explicit version and copies it plus `manifest.json` into a bundle. With `MODEL_BUNDLE` set, the API loads that snapshot and never touches the registry; otherwise it resolves `champion` from MLflow at startup. The model is loaded in the app lifespan and startup fails if it can't load. Alias changes require restarting/redeploying the API. `api.py` ends with a module-level `app = create_app()`; tests inject a fake loader via `create_app(loader)`.
 - **skops allowlist**: MLflow serializes sklearn models with skops, which refuses unknown types on load. `config.SKOPS_TRUSTED_TYPES` is an explicit allowlist passed to `log_model`; add to it when a new model/transformer type fails to load, never trust-all.
 - **Infra/CD**: `infra/` (Terraform, azurerm: Container Apps, ACR, AcrPull identity, logs, budget). `.github/workflows/ci.yml` (quality + terraform fmt/validate, also `workflow_call`) gates the manual `deploy.yml` (OIDC, digest-based deploy, smoke tests). Runbooks and ADRs are in `docs/`.
+
+O CD aceita bundle de release (`model_release`, `model_sha256`, `model_version`) ou MLflow HTTPS.
+`scripts/model_release.py` valida integridade, manifesto e caminhos antes da extração. O ambiente
+`azure-dev` permite apenas `main`. O subject OIDC deste repositório inclui IDs numéricos; use o
+valor documentado no runbook, que corresponde à assertion emitida pelo GitHub.
 
 ## Frontend (`web/`)
 

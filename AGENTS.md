@@ -36,6 +36,11 @@ Package in `src/hotelml/`. The flow spans several modules:
 - **skops allowlist**: MLflow serializes sklearn models with skops, which refuses unknown types on load. `config.SKOPS_TRUSTED_TYPES` is an explicit allowlist passed to `log_model`; add to it when a new model/transformer type fails to load, never trust-all.
 - **Infra/CD**: `infra/` (Terraform, azurerm: Container Apps, ACR, AcrPull identity, logs, budget). `.github/workflows/ci.yml` (quality + terraform fmt/validate, also `workflow_call`) gates the manual `deploy.yml` (OIDC, digest-based deploy, smoke tests). Runbooks and ADRs are in `docs/`.
 
+O CD aceita bundle de release (`model_release`, `model_sha256`, `model_version`) ou MLflow HTTPS.
+`scripts/model_release.py` valida integridade, manifesto e caminhos antes da extração. O ambiente
+`azure-dev` permite apenas `main`. O subject OIDC deste repositório inclui IDs numéricos; use o
+valor documentado no runbook, que corresponde à assertion emitida pelo GitHub.
+
 ## Frontend (`web/`)
 
 Next.js 16 + TypeScript + Tailwind + shadcn/ui (criado com `npx shadcn@latest init`). UI text is

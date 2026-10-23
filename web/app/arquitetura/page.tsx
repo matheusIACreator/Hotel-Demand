@@ -141,8 +141,8 @@ export default function Page() {
                     text: "Sem password do ACR nem client secret no GitHub.",
                   },
                   {
-                    title: "Exporta o champion",
-                    text: "A partir de um MLflow remoto acessível ao runner.",
+                    title: "Recupera o modelo aprovado",
+                    text: "Bundle de uma release com SHA-256 e versão explícita, ou champion de um MLflow remoto.",
                   },
                   {
                     title: "Publica por digest",
@@ -151,8 +151,9 @@ export default function Page() {
                 ]}
               />
               <p className="text-sm text-muted-foreground">
-                Configuração pendente: identidade OIDC, variáveis do GitHub e um
-                registry MLflow remoto. O deploy atual foi feito localmente.
+                O ambiente azure-dev está restrito à main e usa uma identidade
+                federada. Cada execução valida o modelo e registra os digests da
+                imagem publicada e da imagem anterior para rollback.
               </p>
               <DocLink href={DOCS.deployWorkflow} className="text-sm">
                 deploy.yml
