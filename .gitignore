@@ -20,7 +20,7 @@ htmlcov/
 mlflow.db
 mlruns/
 mlartifacts/
-data/
+/data/
 
 # Terraform
 .terraform/

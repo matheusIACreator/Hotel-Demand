@@ -45,3 +45,13 @@ autenticação e limites de tráfego. Não enviar dados pessoais neste endpoint 
 - [Container Apps e GitHub Actions](https://learn.microsoft.com/en-us/azure/container-apps/github-actions)
 - [Recurso Terraform Container App](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/container_app)
 - [Budget por resource group](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/consumption_budget_resource_group)
+
+## Complemento: entrega por release aprovada (2026-10-23)
+
+O CD também aceita um bundle publicado como asset de uma release GitHub, identificado por tag,
+SHA-256 e versão explícita. Essa alternativa reutiliza o registry local de treino e evita
+provisionar MLflow remoto nesta etapa. O workflow verifica o arquivo antes de extrair e aplica
+os mesmos testes da imagem e do endpoint. O modo MLflow HTTPS continua disponível.
+
+A release não promove modelos: deve conter um snapshot já aprovado. O digest da imagem e a
+imagem anterior ficam registrados no resumo do deploy para rastreabilidade e rollback.

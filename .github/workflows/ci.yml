@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -88,6 +88,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Testes end-to-end e acessibilidade (axe)
         run: npm run test:e2e
+      - name: Evidências dos testes end-to-end
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: web/test-results/
+          retention-days: 7
 
   terraform:
     runs-on: ubuntu-latest

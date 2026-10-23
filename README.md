@@ -160,3 +160,14 @@ O orçamento mensal é 20 na moeda da subscrição e não interrompe os recursos
 O deploy foi realizado localmente. O workflow de CD continua dependente da configuração
 da identidade OIDC, das variáveis do GitHub e de um registry MLflow remoto acessível ao runner;
 consulte o [runbook](docs/runbooks/deploy-azure.md).
+
+## CI/CD do frontend
+
+O repositório está conectado à Vercel, com Root Directory `web` e produção pela branch `main`.
+O frontend está publicado em https://hotelml.vercel.app. O CI valida tipos, testes, build e
+acessibilidade; as métricas históricas exportadas em `web/lib/data/model-card.json` são
+versionadas para que um checkout limpo reproduza o build.
+
+O CD da API aceita tanto um registry MLflow HTTPS quanto um bundle de release aprovada com
+SHA-256 e versão explícita. Configuração OIDC e validação do primeiro deploy automatizado
+continuam necessárias para considerar o CD concluído; consulte o runbook de deploy.
