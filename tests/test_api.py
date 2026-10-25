@@ -95,7 +95,7 @@ def test_failed_model_load_prevents_startup():
     def fail():
         raise RuntimeError("no champion")
 
-    with pytest.raises(RuntimeError, match="no champion"), TestClient(create_app(fail)):
+    with pytest.raises(RuntimeError, match="modelo indisponível"), TestClient(create_app(fail)):
         pass
 
 
