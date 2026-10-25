@@ -11,7 +11,7 @@ alertas e operação, com infraestrutura em código na Azure.
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
 | 2 | API FastAPI em container + Terraform na Azure + CD | API publicada; CD configurado com OIDC e bundle aprovado |
 | 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
-| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | pendente |
+| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | telemetria e alertas implementados; drift, qualidade, SLOs e retreino pendentes |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
 | 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
 
@@ -70,6 +70,18 @@ O exemplo tem ingress público de demonstração. Configuração, limitações e
    de entrada e uma amostra de referência (base do detector de drift).
 5. O modelo é registrado como `challenger` e só vira `champion` se superar o atual
    (ver `docs/adr/0002-registry-por-aliases.md`).
+
+## Monitoramento da API
+
+A API emite eventos JSON com status HTTP, duração, versão do modelo e identificador do pedido,
+sem conteúdo de reservas ou mensagens de exceção. Probes bem-sucedidas são omitidas. O workspace
+existente recebe esses eventos e três regras Terraform podem alertar por email sobre erros
+5xx, P95 elevado ou falha ao carregar o modelo. Ative com `monitoring_enabled = true`.
+
+Os limites iniciais exigem volume mínimo, não são SLOs e não medem espera por réplica nem o
+caminho externo pela Vercel. Escala a zero e ausência de pedidos não disparam alertas. Fontes,
+consultas e diagnóstico: [runbook](docs/runbooks/monitoramento-api.md) e
+[ADR 0005](docs/adr/0005-observabilidade-api.md).
 
 ## Interface web
 

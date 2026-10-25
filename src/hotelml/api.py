@@ -15,13 +15,13 @@ import mlflow.sklearn
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from hotelml.bundle import LoadedModel, load_bundle
 from hotelml.config import ADR_MAX, INPUT_COLUMNS, MONTH_TO_NUM, Settings
+from hotelml.observability import RequestTelemetry, event
 
-log = logging.getLogger(__name__)
 NonNegativeInt = Annotated[int, Field(ge=0, strict=True)]
 
 
@@ -98,15 +98,32 @@ def load_serving_model() -> LoadedModel:
 def create_app(loader: Callable[[], LoadedModel] = load_serving_model) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        logging.basicConfig(
-            level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
-        )
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        # O access log do Uvicorn inclui query strings; a telemetria usa rotas controladas.
+        logging.getLogger("uvicorn.access").disabled = True
         # Falha no arranque: uma revisão sem modelo nunca deve receber tráfego.
-        app.state.loaded = loader()
-        yield
-        app.state.loaded = None
+        start = time.perf_counter()
+        event("model_loading")
+        try:
+            app.state.loaded = loader()
+        except Exception as exc:
+            event("model_load_failed", error_type=type(exc).__name__)
+            raise RuntimeError("modelo indisponível na inicialização") from None
+        loaded = app.state.loaded
+        event(
+            "model_ready",
+            model_name=loaded.name,
+            model_version=loaded.version,
+            duration_ms=round((time.perf_counter() - start) * 1000, 2),
+        )
+        try:
+            yield
+        finally:
+            event("model_stopped", model_name=loaded.name, model_version=loaded.version)
+            app.state.loaded = None
 
     app = FastAPI(title="hotelml", version="0.2.0", lifespan=lifespan)
+    app.add_middleware(RequestTelemetry)
 
     @app.get("/health/live")
     def live() -> dict[str, str]:
@@ -120,11 +137,11 @@ def create_app(loader: Callable[[], LoadedModel] = load_serving_model) -> FastAP
         return {"status": "ready", "model_name": loaded.name, "model_version": loaded.version}
 
     @app.post("/predict", response_model=PredictResponse)
-    def predict(request: PredictRequest) -> PredictResponse:
+    def predict(request: PredictRequest, http_request: Request) -> PredictResponse:
+        http_request.state.booking_count = len(request.bookings)
         loaded = getattr(app.state, "loaded", None)
         if loaded is None:
             raise HTTPException(503, "modelo indisponível")
-        start = time.perf_counter()
         frame = pd.DataFrame([b.model_dump() for b in request.bookings], columns=INPUT_COLUMNS)
         try:
             probabilities = np.asarray(loaded.model.predict_proba(frame))[:, 1]
@@ -135,15 +152,8 @@ def create_app(loader: Callable[[], LoadedModel] = load_serving_model) -> FastAP
                 for p in probabilities
             ]
         except Exception as exc:
-            log.exception("falha na inferência, versão %s", loaded.version)
-            raise HTTPException(500, "falha na inferência") from exc
-        log.info(
-            "prediction model=%s version=%s rows=%d latency_ms=%.2f",
-            loaded.name,
-            loaded.version,
-            len(frame),
-            (time.perf_counter() - start) * 1000,
-        )
+            http_request.state.error_type = type(exc).__name__
+            raise HTTPException(500, "falha na inferência") from None
         return PredictResponse(
             model_name=loaded.name, model_version=loaded.version, predictions=predictions
         )
