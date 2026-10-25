@@ -54,6 +54,12 @@ O teste de notificação do grupo de ações valida somente o canal de email e e
 de teste. Ele não comprova que ocorreu um incidente nem que a regra detectou tráfego real.
 Não marque a entrega do email como confirmada sem confirmação do destinatário.
 
+Na validação de 2026-10-25, os nove cenários KQL passaram e as três regras foram criadas,
+mas a API de teste do grupo de ações retornou `Conflict: Free subscription not supported`.
+Isso impede confirmar o envio pelo mecanismo de teste nessa assinatura. O grupo de ações
+permanece configurado; a entrega ao destinatário continua sem confirmação. Não interprete a
+criação do recurso como evidência de recebimento de email.
+
 ## Próximos passos
 
 Coletar uma linha de base antes de definir SLOs; medir o caminho Vercel/ingress separadamente;
