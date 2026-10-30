@@ -49,6 +49,21 @@ def _cmd_reference(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_quality(args: argparse.Namespace) -> int:
+    from hotelml.quality import quality_report
+
+    result = quality_report(
+        Path(args.batch),
+        Path(args.outcomes),
+        Path(args.output),
+        as_of=args.as_of,
+        data_kind=args.data_kind,
+        minimum=args.minimum_rows,
+    )
+    print(json.dumps({"report": args.output, "status": result["status"]}))
+    return 0
+
+
 def _cmd_monitored(args: argparse.Namespace) -> int:
     from hotelml.spark import create_spark, run_monitored_batch
 
@@ -149,6 +164,13 @@ def _cmd_rollback(_: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hotelml", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    quality = sub.add_parser("quality", help="avalia lote concluído contra desfechos finais")
+    for name in ("batch", "outcomes", "output", "as-of"):
+        quality.add_argument(f"--{name}", required=True)
+    quality.add_argument("--data-kind", required=True, choices=["synthetic", "observed"])
+    quality.add_argument("--minimum-rows", type=int, default=30)
+    quality.set_defaults(func=_cmd_quality)
 
     reference = sub.add_parser("reference", help="exporta referência do run explícito de um bundle")
     reference.add_argument("--bundle", required=True)
