@@ -40,6 +40,38 @@ def _cmd_drift(args: argparse.Namespace) -> int:
     return 2 if result["drift_detected"] else 0
 
 
+def _cmd_reference(args: argparse.Namespace) -> int:
+    from hotelml.reference import export_reference
+
+    print(
+        json.dumps(export_reference(Path(args.bundle), Path(args.output), Settings().tracking_uri))
+    )
+    return 0
+
+
+def _cmd_monitored(args: argparse.Namespace) -> int:
+    from hotelml.spark import create_spark, run_monitored_batch
+
+    spark = create_spark(args.master)
+    try:
+        result = run_monitored_batch(
+            spark,
+            args.input,
+            Path(args.output),
+            Path(args.bundle),
+            Path(args.reference),
+            args.threshold,
+            sample_rows=args.sample_rows,
+            minimum=args.minimum_rows,
+            psi_threshold=args.psi_threshold,
+            tv_threshold=args.tv_threshold,
+        )
+        print(json.dumps(result, indent=2))
+    finally:
+        spark.stop()
+    return 0  # Drift é um sinal; a execução completa continua bem-sucedida.
+
+
 def _cmd_features(args: argparse.Namespace) -> int:
     from hotelml.spark import create_spark, run_features
 
@@ -117,6 +149,21 @@ def _cmd_rollback(_: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hotelml", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    reference = sub.add_parser("reference", help="exporta referência do run explícito de um bundle")
+    reference.add_argument("--bundle", required=True)
+    reference.add_argument("--output", required=True)
+    reference.set_defaults(func=_cmd_reference)
+    monitored = sub.add_parser("batch-monitor", help="drift amostrado e scoring Spark auditáveis")
+    for name in ("input", "output", "bundle", "reference"):
+        monitored.add_argument(f"--{name}", required=True)
+    monitored.add_argument("--master")
+    monitored.add_argument("--threshold", type=float, default=0.5)
+    monitored.add_argument("--sample-rows", type=int, default=5000)
+    monitored.add_argument("--minimum-rows", type=int, default=200)
+    monitored.add_argument("--psi-threshold", type=float, default=0.2)
+    monitored.add_argument("--tv-threshold", type=float, default=0.1)
+    monitored.set_defaults(func=_cmd_monitored)
 
     drift = sub.add_parser("drift", help="compara reservas offline; código 2 indica drift")
     drift.add_argument("--reference", required=True, help="Parquet de referência do treino")
