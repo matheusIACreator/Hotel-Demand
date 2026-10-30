@@ -197,3 +197,18 @@ bundles com dados sintéticos e registry temporário. Verifica readiness e resta
 previsões, sem alterar a API Azure. O tempo medido é local, não RTO de produção.
 Comandos, limitações e interpretação: [runbook](docs/runbooks/drift-e-rollback.md) e
 [ADR 0006](docs/adr/0006-drift-offline-e-exercicio-rollback.md).
+
+## Drift integrado ao lote
+
+`hotelml reference --bundle model-bundle --output data/reference-v1` exporta separadamente a
+amostra do run explícito do modelo. O pacote contém dados de treino e não deve acompanhar a
+imagem da API automaticamente. `hotelml batch-monitor --input <parquet> --output <novo-diretório>
+--bundle model-bundle --reference data/reference-v1` compara uma amostra limitada e calcula as
+previsões sobre o lote completo. Drift sinalizado permite concluir a execução; dados inválidos
+ou referência incompatível impedem a conclusão.
+
+A raiz da saída reúne `scores/`, `drift.json`, `run.json` e `_SUCCESS`, com identificação comum
+entre previsões e relatório. Somente o marcador da raiz confirma conclusão conjunta.
+Limites, interpretação e comandos: [runbook de lote monitorado](docs/runbooks/lote-monitorado.md)
+e [ADR 0007](docs/adr/0007-lote-monitorado.md). Os testes usam dados sintéticos; não representam
+monitoramento de uma janela real de produção.

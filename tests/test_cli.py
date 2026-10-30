@@ -27,6 +27,22 @@ def test_train_status_and_rollback_flow(capsys, tmp_path) -> None:
     exported = json.loads(capsys.readouterr().out)
     assert exported["model_version"] == out["version"]
 
+    assert (
+        main(
+            [
+                "reference",
+                "--bundle",
+                str(tmp_path / "bundle"),
+                "--output",
+                str(tmp_path / "reference"),
+            ]
+        )
+        == 0
+    )
+    reference = json.loads(capsys.readouterr().out)
+    assert reference["run_id"] == exported["run_id"]
+    assert len(reference["reference_sha256"]) == 64
+
     assert main(["rollback"]) == 1  # só há uma versão: nada para reverter
 
 

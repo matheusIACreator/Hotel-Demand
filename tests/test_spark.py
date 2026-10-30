@@ -207,3 +207,83 @@ def test_partition_rejects_invalid_probabilities(monkeypatch, reservations, prob
     )
     with pytest.raises(ValueError, match="probabilidades inválidas"):
         list(predict(iter([reservations])))
+
+
+@pytest.fixture
+def reference_package(tmp_path, snapshot, reservations):
+    import hashlib
+
+    root = tmp_path / "reference"
+    root.mkdir()
+    reservations[INPUT_COLUMNS].to_parquet(root / "reference.parquet", index=False)
+    manifest = json.loads((snapshot[0] / "manifest.json").read_text())
+    manifest["reference_sha256"] = hashlib.sha256(
+        (root / "reference.parquet").read_bytes()
+    ).hexdigest()
+    (root / "manifest.json").write_text(json.dumps(manifest))
+    return root
+
+
+@pytest.mark.parametrize("shifted", [False, True])
+def test_monitored_batch_preserves_predictions_and_drift(
+    spark, reservations, snapshot, reference_package, tmp_path, shifted
+):
+    current = reservations.copy()
+    if shifted:
+        current["lead_time"] += 1000
+    source, output = tmp_path / "input", tmp_path / "run"
+    spark.createDataFrame(current).repartition(2).write.parquet(str(source))
+    result = spark_module.run_monitored_batch(
+        spark,
+        str(source),
+        output,
+        snapshot[0],
+        reference_package,
+        minimum=20,
+        sample_rows=30,
+    )
+    assert result["drift_detected"] == shifted
+    assert (output / "_SUCCESS").exists()
+    assert json.loads((output / "run.json").read_text()) == result
+    drift = json.loads((output / "drift.json").read_text())
+    scores = spark.read.parquet(str(output / "scores")).toPandas().sort_values("booking_id")
+    assert set(scores.batch_id) == {drift["batch_id"]} == {result["batch_id"]}
+    assert drift["model"]["run_id"] == "batch-test"
+    expected = snapshot[1].predict_proba(current.sort_values("booking_id")[INPUT_COLUMNS])[:, 1]
+    np.testing.assert_allclose(scores.cancellation_probability, expected)
+    assert drift["current_rows"] == 30
+    with pytest.raises(FileExistsError):
+        spark_module.run_monitored_batch(spark, str(source), output, snapshot[0], reference_package)
+
+
+def test_monitored_batch_rejects_invalid_unsampled_row(
+    spark, reservations, snapshot, reference_package, tmp_path
+):
+    import hashlib
+
+    reference_file = reference_package / "reference.parquet"
+    reservations[INPUT_COLUMNS].head(20).to_parquet(reference_file, index=False)
+    manifest_file = reference_package / "manifest.json"
+    manifest = json.loads(manifest_file.read_text())
+    manifest["reference_sha256"] = hashlib.sha256(reference_file.read_bytes()).hexdigest()
+    manifest_file.write_text(json.dumps(manifest))
+    # Menor amostra que o lote; a reserva inválida fica deliberadamente fora dela.
+    frame = spark.createDataFrame(reservations)
+    excluded = frame.orderBy(spark_module.F.xxhash64("booking_id"), "booking_id").collect()[-1][
+        "booking_id"
+    ]
+    current = reservations.copy()
+    current.loc[current.booking_id == excluded, "adr"] = -1
+    source, output = tmp_path / "invalid", tmp_path / "run"
+    spark.createDataFrame(current).write.parquet(str(source))
+    with pytest.raises(Exception, match="reserva inválida"):
+        spark_module.run_monitored_batch(
+            spark,
+            str(source),
+            output,
+            snapshot[0],
+            reference_package,
+            minimum=20,
+            sample_rows=20,
+        )
+    assert not (output / "_SUCCESS").exists()

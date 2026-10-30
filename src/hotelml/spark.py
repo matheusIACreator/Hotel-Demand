@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -148,7 +149,9 @@ def _prediction_batches(
     return predict
 
 
-def score_batch(frame: DataFrame, bundle: Path, threshold: float = 0.5) -> DataFrame:
+def score_batch(
+    frame: DataFrame, bundle: Path, threshold: float = 0.5, *, batch_id: str | None = None
+) -> DataFrame:
     """Distribui um snapshot imutável; carrega o modelo uma vez por partição, nunca por linha."""
     import shutil
 
@@ -156,7 +159,7 @@ def score_batch(frame: DataFrame, bundle: Path, threshold: float = 0.5) -> DataF
         raise ValueError("threshold deve estar entre 0 e 1")
     validate_identifiers(frame)
     loaded = load_bundle(bundle)
-    batch_id = uuid4().hex
+    batch_id = batch_id or uuid4().hex
     # Ações/retries são lazy: o ZIP deve sobreviver até ao fim do SparkContext.
     # A área gerida pelo Spark é removida quando a sessão termina.
     archive_dir = Path(SparkFiles.getRootDirectory()) / "hotelml-snapshots"
@@ -201,3 +204,79 @@ def run_batch(
     finally:
         predictions.unpersist()
     return {"source": source, "output": output, "rows": rows}
+
+
+def run_monitored_batch(
+    spark: SparkSession,
+    source: str,
+    output: Path,
+    bundle: Path,
+    reference: Path,
+    threshold: float = 0.5,
+    *,
+    sample_rows: int = 5000,
+    minimum: int = 200,
+    psi_threshold: float = 0.2,
+    tv_threshold: float = 0.1,
+) -> dict:
+    """Snapshot local da execução; marcador final existe somente com scoring e drift completos."""
+    from hotelml.drift import compare
+    from hotelml.reference import load_reference
+
+    if output.exists():
+        raise FileExistsError(output)
+    if sample_rows < minimum or minimum < 2:
+        raise ValueError("amostragem incompatível com o volume mínimo")
+    baseline, metadata = load_reference(bundle, reference)
+    if len(baseline) > sample_rows:
+        raise ValueError("referência excede o limite de linhas no driver")
+    frame = spark.read.parquet(source).select(ID_COLUMN, *INPUT_COLUMNS).persist()
+    try:
+        # Materializa a mesma entrada para o diagnóstico e o scoring, sem reler a origem.
+        validate_identifiers(frame)
+        rows = frame.count()
+        sample = frame.orderBy(F.xxhash64(ID_COLUMN), F.col(ID_COLUMN)).limit(sample_rows)
+        diagnostic = compare(
+            baseline,
+            sample.select(*INPUT_COLUMNS).toPandas(),
+            minimum=minimum,
+            psi_threshold=psi_threshold,
+            tv_threshold=tv_threshold,
+        )
+        batch_id = uuid4().hex
+        diagnostic.update(
+            {
+                "batch_id": batch_id,
+                "model": metadata,
+                "batch_rows": rows,
+                "sampling": "menores xxhash64 de booking_id, desempate pelo ID",
+                "sample_limit": sample_rows,
+            }
+        )
+        predictions = score_batch(frame, bundle, threshold, batch_id=batch_id).persist()
+        try:
+            scored_rows = predictions.count()  # Valida também as reservas fora da amostra.
+            if scored_rows != rows:
+                raise ValueError("contagem de previsões divergente")
+            output.mkdir(parents=True, exist_ok=False)
+            predictions.write.mode("errorifexists").parquet(str(output / "scores"))
+            with (output / "drift.json").open("x", encoding="utf-8") as stream:
+                json.dump(diagnostic, stream, indent=2, ensure_ascii=False, allow_nan=False)
+            result = {
+                "schema_version": 1,
+                "batch_id": batch_id,
+                "rows": rows,
+                "model": metadata,
+                "threshold": threshold,
+                "drift_detected": diagnostic["drift_detected"],
+                "scores": "scores",
+                "drift_report": "drift.json",
+            }
+            with (output / "run.json").open("x", encoding="utf-8") as stream:
+                json.dump(result, stream, indent=2, ensure_ascii=False, allow_nan=False)
+            (output / "_SUCCESS").touch(exist_ok=False)
+        finally:
+            predictions.unpersist()
+    finally:
+        frame.unpersist()
+    return result
