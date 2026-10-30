@@ -212,3 +212,13 @@ entre previsões e relatório. Somente o marcador da raiz confirma conclusão co
 Limites, interpretação e comandos: [runbook de lote monitorado](docs/runbooks/lote-monitorado.md)
 e [ADR 0007](docs/adr/0007-lote-monitorado.md). Os testes usam dados sintéticos; não representam
 monitoramento de uma janela real de produção.
+
+## Qualidade com desfechos finais
+
+`hotelml quality --batch <lote-concluído> --outcomes <parquet> --as-of <data-com-fuso>
+--data-kind synthetic|observed --output <novo.json>` liga previsões e resultados finais pelo
+ID da reserva. O relatório mostra cobertura, pendências e métricas somente dos desfechos
+conhecidos no corte; dados insuficientes e métricas indefinidas ficam sem valor. Não executa
+novas previsões ou promoção automática. A fonte real de desfechos ainda precisa ser conectada.
+Contrato e interpretação: [runbook](docs/runbooks/qualidade-desfechos.md) e
+[ADR 0008](docs/adr/0008-avaliacao-com-desfechos.md).
