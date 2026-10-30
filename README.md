@@ -11,7 +11,7 @@ alertas e operação, com infraestrutura em código na Azure.
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
 | 2 | API FastAPI em container + Terraform na Azure + CD | API publicada; CD configurado com OIDC e bundle aprovado |
 | 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
-| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | telemetria e alertas implementados; drift, qualidade, SLOs e retreino pendentes |
+| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | telemetria, alertas, drift offline e exercício local de rollback implementados; qualidade com desfechos reais, SLOs e retreino pendentes |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
 | 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
 
@@ -184,3 +184,16 @@ versionadas para que um checkout limpo reproduza o build.
 O CD da API aceita tanto um registry MLflow HTTPS quanto um bundle de release aprovada com
 SHA-256 e versão explícita. OIDC e variáveis Azure estão configurados no ambiente `azure-dev`;
 o workflow executa CI, smoke test da imagem e smoke test do endpoint publicado.
+
+## Drift offline e recuperação
+
+`hotelml drift --reference <parquet> --current <parquet> --output <novo.json>` compara as entradas
+com uma referência identificada por SHA-256. O relatório contém scores e taxas de ausência;
+retorna 2 quando há sinal de drift e não promove nem retreina modelos automaticamente.
+O treino já salva uma amostra de referência no MLflow. Não há coleta de reservas pela API.
+
+`python scripts/exercise_rollback.py --output data/reports/rollback-001.json` exercita aliases e
+bundles com dados sintéticos e registry temporário. Verifica readiness e restauração exata das
+previsões, sem alterar a API Azure. O tempo medido é local, não RTO de produção.
+Comandos, limitações e interpretação: [runbook](docs/runbooks/drift-e-rollback.md) e
+[ADR 0006](docs/adr/0006-drift-offline-e-exercicio-rollback.md).
