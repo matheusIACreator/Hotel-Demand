@@ -25,6 +25,21 @@ def _cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_drift(args: argparse.Namespace) -> int:
+    from hotelml.drift import report
+
+    result = report(
+        Path(args.reference),
+        Path(args.current),
+        Path(args.output),
+        minimum=args.minimum_rows,
+        psi_threshold=args.psi_threshold,
+        tv_threshold=args.tv_threshold,
+    )
+    print(json.dumps({"report": args.output, "drift_detected": result["drift_detected"]}))
+    return 2 if result["drift_detected"] else 0
+
+
 def _cmd_features(args: argparse.Namespace) -> int:
     from hotelml.spark import create_spark, run_features
 
@@ -102,6 +117,15 @@ def _cmd_rollback(_: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hotelml", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    drift = sub.add_parser("drift", help="compara reservas offline; código 2 indica drift")
+    drift.add_argument("--reference", required=True, help="Parquet de referência do treino")
+    drift.add_argument("--current", required=True, help="Parquet da janela atual")
+    drift.add_argument("--output", required=True, help="novo relatório JSON")
+    drift.add_argument("--minimum-rows", type=int, default=200)
+    drift.add_argument("--psi-threshold", type=float, default=0.2)
+    drift.add_argument("--tv-threshold", type=float, default=0.1)
+    drift.set_defaults(func=_cmd_drift)
 
     train = sub.add_parser("train", help="treina, registra e tenta promover um modelo")
     train.add_argument(
