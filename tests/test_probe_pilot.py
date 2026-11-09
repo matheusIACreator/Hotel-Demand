@@ -55,6 +55,16 @@ def test_first_created_run_owns_slot_and_delays_do_not_catch_up(pilot, policy):
     assert reserve(policy, [], runs[0], start) is None
 
 
+def test_yesterday_slot_cannot_spend_today_request_budget(pilot, policy):
+    created = pilot["timestamp"]("2026-11-09T23:17:00Z")
+    current = {"id": 10, "event": "schedule", "run_attempt": 1, "created_at": created.isoformat()}
+    late = pilot["timestamp"]("2026-11-10T00:01:00Z")
+    assert pilot["slot_for"](policy, late) == 2
+    assert not pilot["slot_open"](policy, 2, late)
+    assert pilot["reserve_slot"](policy, [current], current, late) is None
+    assert pilot["slot_open"](policy, 2, created)
+
+
 @pytest.mark.parametrize("failed,calls", [(0, 1), (1, 3)])
 def test_diagnostics_never_change_primary_result(
     pilot, policy, tmp_path, monkeypatch, failed, calls

@@ -17,6 +17,7 @@ Não altere datas, versão ou limites no decorrer do piloto sem registrar uma no
 Abra **Actions → Piloto de sondagem externa**. O cron usa o minuto 17; atrasos podem ocorrer.
 O coletor rejeita reexecuções, dispatch manual, runs duplicados do mesmo slot e runs que
 chegaram ao próximo slot. Não use re-run para substituir uma falha por um sucesso.
+Chamadas do slot de ontem não podem iniciar no dia UTC seguinte; isso preserva o limite diário.
 
 Em cada execução, consulte:
 

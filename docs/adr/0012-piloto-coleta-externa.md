@@ -24,6 +24,8 @@ tempo. Um gate anterior à instalação das dependências bloqueia tráfego fora
 dispatch manual e em reexecuções. Antes de medir, o coletor consulta o histórico do próprio
 workflow e permite somente o primeiro run agendado criado para o slot. Runs atrasados até outro
 slot são descartados; não há compensação de slots perdidos com uma rajada de chamadas.
+Tentativas do último slot de um dia também não podem iniciar no dia UTC seguinte, preservando
+o limite de 72 tentativas iniciadas por dia, inclusive quando o agendador atrasa.
 
 A ausência de acesso à API GitHub ou paginação incompleta impede a coleta antes do tráfego.
 A reserva usa o histórico de criação de runs, não um horário planejado fornecido pelo GitHub;

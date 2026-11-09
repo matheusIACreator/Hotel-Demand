@@ -46,6 +46,12 @@ def slot_for(policy: dict, value: datetime) -> int | None:
     return int((value - start).total_seconds() // policy["period_seconds"])
 
 
+def slot_open(policy: dict, slot: int, now: datetime) -> bool:
+    scheduled = timestamp(policy["start"]) + timedelta(seconds=slot * policy["period_seconds"])
+    # Não carregar tentativas do último slot de ontem para o orçamento UTC de hoje.
+    return slot_for(policy, now) == slot and now.date() == scheduled.date()
+
+
 def outputs(**values: object) -> None:
     destination = os.environ.get("GITHUB_OUTPUT")
     if destination:
@@ -95,7 +101,7 @@ def reserve_slot(policy: dict, runs: list[dict], current: dict, now: datetime) -
     created = timestamp(current["created_at"])
     slot = slot_for(policy, created)
     # Um job atrasado não pode executar o slot de uma hora anterior.
-    if slot is None or slot_for(policy, now) != slot:
+    if slot is None or not slot_open(policy, slot, now):
         return None
     owners = [
         run["id"]
@@ -111,7 +117,7 @@ def collect(policy: dict, output: Path, slot: int) -> dict:
     from hotelml.probe import run_probe
 
     # A reserva remota antecede esta função; um diretório novo preserva interrupções locais.
-    if slot_for(policy, datetime.now(UTC)) != slot:
+    if not slot_open(policy, slot, datetime.now(UTC)):
         raise RuntimeError("slot expirou antes da chamada; não enviar tráfego")
     output.mkdir(parents=True, exist_ok=False)
     primary = run_probe(
@@ -131,7 +137,7 @@ def collect(policy: dict, output: Path, slot: int) -> dict:
 
         for index in range(policy["diagnostic_attempts"]):
             time.sleep(policy["diagnostic_interval_seconds"])
-            if slot_for(policy, datetime.now(UTC)) != slot:
+            if not slot_open(policy, slot, datetime.now(UTC)):
                 break
             diagnostic = run_probe(
                 policy["origin"],
