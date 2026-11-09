@@ -18,6 +18,10 @@ O CI usa `npm ci`, que exige o `package-lock.json` em sincronia. Atualize o lock
 mais recente (por exemplo `npx npm@11 install`): o npm 11.6 omitia dependências opcionais de
 outras plataformas, como `@emnapi/*`, e o `npm ci` no Linux falhava.
 
+O build de produção usa `next build --webpack`: o Turbopack da versão 16.4.2 falhou no CI
+ao resolver a fonte Newsreader com `next/font/google`. Webpack mantém as fontes e o contrato
+das rotas e permite validar o build de produção; `npm run dev` continua usando Turbopack.
+
 ## Identidade visual
 
 Os tokens ficam em `app/globals.css`: bege `#F7F4EE` como fundo, branco neve `#FFFDFA` nas

@@ -62,6 +62,9 @@ criação do recurso como evidência de recebimento de email.
 
 ## Próximos passos
 
-Coletar uma linha de base antes de definir SLOs; medir o caminho Vercel/ingress separadamente;
-avaliar sondagens com orçamento explícito; depois acrescentar drift e avaliação com desfechos
-reais. O frontend continua mostrando apenas os indicadores já alimentados por fontes reais.
+Use o [avaliador de SLIs/SLOs internos](sli-slo.md) para coletar uma linha de base antes de
+aprovar metas. Ele avalia eventos exportados, com janela e completude explícitas, sem alterar
+os limiares dos alertas. A [sondagem externa](sondagem-externa.md) mede amostras finitas pelo
+caminho Vercel/ingress. Política e orçamento para coleta recorrente continuam pendentes,
+assim como conectar a fonte real de desfechos. O frontend continua
+mostrando apenas os indicadores já alimentados por fontes reais.

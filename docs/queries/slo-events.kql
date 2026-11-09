@@ -1,0 +1,8 @@
+// A janela de ingestão é definida em timespan no corpo da consulta REST.
+// Não filtrar por schema_version: o avaliador deve rejeitar versões incompatíveis.
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == 'api-hotelml-dev'
+| extend telemetry = parse_json(Log_s)
+| where tostring(telemetry.event) == 'http_request'
+| where tostring(telemetry.route) == '/predict' and tostring(telemetry.method) == 'POST'
+| project event_json = tostring(telemetry)
