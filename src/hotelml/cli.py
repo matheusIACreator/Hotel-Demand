@@ -64,6 +64,44 @@ def _cmd_quality(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_slo(args: argparse.Namespace) -> int:
+    from hotelml.slo import slo_report
+
+    result = slo_report(
+        Path(args.input),
+        Path(args.output),
+        input_format=args.input_format,
+        start=args.start,
+        end=args.end,
+        availability_target=args.availability_target,
+        latency_target=args.latency_target,
+        latency_ms=args.latency_ms,
+        data_kind=args.data_kind,
+        complete_window=args.complete_window,
+        minimum=args.minimum_requests,
+    )
+    print(json.dumps({"report": args.output, "status": result["status"]}))
+    if result["status"] != "ready":
+        return 0
+    return 2 if not result["availability"]["met"] or not result["latency"]["met"] else 0
+
+
+def _cmd_probe(args: argparse.Namespace) -> int:
+    from hotelml.probe import run_probe
+
+    result = run_probe(
+        args.url,
+        Path(args.output),
+        target=args.target,
+        count=args.count,
+        interval=args.interval,
+        timeout=args.timeout,
+        expected_version=args.expected_version,
+    )
+    print(json.dumps({"report": args.output, "failed_attempts": result["failed_attempts"]}))
+    return 2 if result["failed_attempts"] else 0
+
+
 def _cmd_monitored(args: argparse.Namespace) -> int:
     from hotelml.spark import create_spark, run_monitored_batch
 
@@ -164,6 +202,27 @@ def _cmd_rollback(_: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hotelml", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    probe = sub.add_parser("probe", help="sondagem externa finita com reserva sintética")
+    probe.add_argument("--url", required=True)
+    probe.add_argument("--output", required=True)
+    probe.add_argument("--target", required=True, choices=["azure", "web"])
+    probe.add_argument("--count", type=int, default=3)
+    probe.add_argument("--interval", type=float, default=5)
+    probe.add_argument("--timeout", type=float, default=30)
+    probe.add_argument("--expected-version")
+    probe.set_defaults(func=_cmd_probe)
+
+    slo = sub.add_parser("slo", help="avalia SLIs e orçamento de erros da telemetria interna")
+    for name in ("input", "output", "start", "end"):
+        slo.add_argument(f"--{name}", required=True)
+    for name in ("availability-target", "latency-target", "latency-ms"):
+        slo.add_argument(f"--{name}", required=True, type=float)
+    slo.add_argument("--data-kind", required=True, choices=["synthetic", "observed"])
+    slo.add_argument("--minimum-requests", type=int, default=100)
+    slo.add_argument("--input-format", choices=["jsonl", "azure"], default="jsonl")
+    slo.add_argument("--complete-window", action="store_true")
+    slo.set_defaults(func=_cmd_slo)
 
     quality = sub.add_parser("quality", help="avalia lote concluído contra desfechos finais")
     for name in ("batch", "outcomes", "output", "as-of"):

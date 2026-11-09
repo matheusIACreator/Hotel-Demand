@@ -1,0 +1,93 @@
+name: Piloto de sondagem externa
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-probe-pilot
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      active: ${{ steps.gate.outputs.active }}
+      expired: ${{ steps.gate.outputs.expired }}
+      pilot_id: ${{ steps.gate.outputs.pilot_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: python scripts/probe_pilot.py gate
+
+  collect:
+    needs: gate
+    if: needs.gate.outputs.active == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - name: Instalar dependências fixadas
+        run: |
+          pip install -r requirements.lock
+          pip install --no-deps -e .
+      - name: Medir tentativa principal e diagnóstico condicional
+        id: collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/probe_pilot.py collect
+      - name: Preservar evidências mesmo quando a API falhar
+        if: always() && steps.collect.outputs.slot != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-${{ needs.gate.outputs.pilot_id }}-${{ steps.collect.outputs.slot }}-${{ steps.collect.outputs.primary_status || 'incomplete' }}
+          path: data/probe-pilot/
+          retention-days: 30
+          if-no-files-found: warn
+
+  audit:
+    needs: [gate, collect]
+    if: always() && needs.gate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auditar cobertura das tentativas principais
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/probe_pilot.py audit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ needs.gate.outputs.pilot_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: data/probe-pilot/audit.json
+          retention-days: 30
+          if-no-files-found: error
+
+  stop:
+    needs: [gate, audit]
+    if: always() && needs.gate.outputs.expired == 'true' && needs.audit.result == 'success' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      actions: write
+    steps:
+      - name: Desativar o agendamento ao fim do piloto
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method PUT "repos/${{ github.repository }}/actions/workflows/external-probe.yml/disable"

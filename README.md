@@ -11,7 +11,7 @@ alertas e operação, com infraestrutura em código na Azure.
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
 | 2 | API FastAPI em container + Terraform na Azure + CD | API publicada; CD configurado com OIDC e bundle aprovado |
 | 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
-| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | telemetria, alertas, drift offline e exercício local de rollback implementados; qualidade com desfechos reais, SLOs e retreino pendentes |
+| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | telemetria, alertas, drift, qualidade offline, SLIs internos e sondagem externa implementados; piloto horário de 14 dias preparado; fonte real de desfechos, metas validadas e retreino operacional pendentes |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
 | 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
 
@@ -82,6 +82,24 @@ Os limites iniciais exigem volume mínimo, não são SLOs e não medem espera po
 caminho externo pela Vercel. Escala a zero e ausência de pedidos não disparam alertas. Fontes,
 consultas e diagnóstico: [runbook](docs/runbooks/monitoramento-api.md) e
 [ADR 0005](docs/adr/0005-observabilidade-api.md).
+
+`hotelml slo` avalia uma exportação de eventos JSONL ou Log Analytics com janela, metas e
+limite de duração explícitos. Calcula SLIs internos, percentis e orçamento de erros; sem volume
+mínimo ou confirmação de coleta completa, o resultado é inconclusivo. Não mede falhas antes
+do processo nem disponibilidade pela Vercel. Exportação, comandos e interpretação:
+[runbook de SLIs/SLOs](docs/runbooks/sli-slo.md) e [ADR 0010](docs/adr/0010-sli-slo-interno.md).
+
+`hotelml probe --url <origem-https> --target web|azure --output <novo-diretório>` mede uma
+amostra finita de previsões sintéticas do lado do cliente, incluindo rede e ingress e,
+no alvo web, o proxy da Vercel. Persiste falhas e timeouts sem retry nem aquecimento e verifica
+o contrato mínimo da previsão. Não estabelece SLO mensal nem cria monitor recorrente.
+Comandos e orçamento: [runbook de sondagem externa](docs/runbooks/sondagem-externa.md) e
+[ADR 0011](docs/adr/0011-sondagem-externa-finita.md).
+
+O [piloto aprovado de disponibilidade](docs/runbooks/piloto-disponibilidade.md) prevê coleta
+horária de 09/11/2026 às 21:17 UTC a 23/11/2026 às 21:17 UTC, com diagnóstico somente após
+falha e retenção de trinta dias. O workflow distingue resultado principal de diagnóstico e
+lacunas de coleta; a ativação depende de publicação na `main`. Escala a zero permanece ativa.
 
 ## Interface web
 
@@ -222,3 +240,13 @@ conhecidos no corte; dados insuficientes e métricas indefinidas ficam sem valor
 novas previsões ou promoção automática. A fonte real de desfechos ainda precisa ser conectada.
 Contrato e interpretação: [runbook](docs/runbooks/qualidade-desfechos.md) e
 [ADR 0008](docs/adr/0008-avaliacao-com-desfechos.md).
+
+## Exercício local de retreino
+
+`python scripts/exercise_retraining.py --output data/reports/retraining-001.json` treina um
+baseline histórico e um challenger com mais dados sintéticos em registry temporário. Verifica
+o bloqueio de uma promoção, compara ambos no mesmo teste temporal e valida o bundle selecionado
+com readiness e inferência HTTP local. O relatório registra métricas e decisões reais do ensaio;
+não representa melhoria em produção. Fonte de desfechos, gatilhos e agendamento operacionais
+continuam pendentes. Comandos e limites: [runbook](docs/runbooks/retreino.md) e
+[ADR 0009](docs/adr/0009-exercicio-retreino.md).

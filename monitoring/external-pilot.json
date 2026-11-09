@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "pilot_id": "external-20261109",
+  "start": "2026-11-09T21:17:00Z",
+  "end": "2026-11-23T21:17:00Z",
+  "period_seconds": 3600,
+  "origin": "https://hotelml.vercel.app",
+  "expected_version": "1",
+  "timeout_seconds": 30,
+  "diagnostic_attempts": 2,
+  "diagnostic_interval_seconds": 5,
+  "retention_days": 30,
+  "collection_grace_seconds": 5400
+}
