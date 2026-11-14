@@ -13,7 +13,10 @@ import {
 
 // Curto o suficiente para o navegador voltar a perguntar; a réplica arranca em paralelo.
 export const HEALTH_TIMEOUT_MS = 8_000
-export const PREDICT_TIMEOUT_MS = 20_000
+// O ingress da Azure retém o pedido enquanto a réplica sai de zero; nos logs de novembro de 2026
+// isso levou 45 a 55 s. Com 20 s o proxy desistia antes e a primeira chamada falhava sempre
+// (ADR 0013). Tem de ficar abaixo de `maxDuration` da rota /api/predict.
+export const PREDICT_TIMEOUT_MS = 50_000
 
 // Respostas do proxy da Azure enquanto não há réplica pronta, e o 503 do próprio /health/ready.
 const STARTING_STATUSES = new Set([502, 503, 504])

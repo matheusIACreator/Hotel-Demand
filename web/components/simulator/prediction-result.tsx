@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { AlertCircle, RotateCw } from "lucide-react"
 
 import { StatusDot } from "@/components/status-dot"
@@ -21,6 +22,30 @@ export type RunPhase =
   | { phase: "sending" }
   | { phase: "waking"; since: number }
   | { phase: "error"; failure: PredictFailure }
+
+// Uma resposta normal chega em menos de um segundo; passado este tempo, o mais provável é a API
+// estar saindo de zero réplicas, e o servidor da interface continua aguardando por ela.
+export const SLOW_NOTICE_MS = 4_000
+
+const STARTING_MESSAGE =
+  "Iniciando o serviço… a primeira previsão depois de uma pausa demora mais."
+
+// Montado a cada envio, por isso o temporizador recomeça em cada estimativa.
+function SendingStatus() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SLOW_NOTICE_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  return slow ? (
+    <p className="flex items-center gap-2 text-sm font-medium">
+      <StatusDot tone="warning" pulse />
+      {STARTING_MESSAGE}
+    </p>
+  ) : (
+    <p className="text-sm text-muted-foreground">Calculando a estimativa…</p>
+  )
+}
 
 export function ProbabilityBar({
   probability,
@@ -214,15 +239,10 @@ export function PredictionPanel({
         {run.phase === "waking" ? (
           <p className="flex items-center gap-2 text-sm font-medium">
             <StatusDot tone="warning" pulse />
-            Iniciando o serviço… a primeira previsão depois de uma pausa demora
-            mais.
+            {STARTING_MESSAGE}
           </p>
         ) : null}
-        {run.phase === "sending" ? (
-          <p className="text-sm text-muted-foreground">
-            Calculando a estimativa…
-          </p>
-        ) : null}
+        {run.phase === "sending" ? <SendingStatus /> : null}
 
         {run.phase === "error" ? (
           <div
