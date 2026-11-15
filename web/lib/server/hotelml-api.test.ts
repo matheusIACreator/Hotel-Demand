@@ -3,7 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import example from "@/lib/contract/example-booking.json"
 
-import { checkHealth, predict, predictStatus } from "./hotelml-api"
+import { maxDuration } from "@/app/api/predict/route"
+
+import {
+  PREDICT_TIMEOUT_MS,
+  checkHealth,
+  predict,
+  predictStatus,
+} from "./hotelml-api"
 
 const fetchMock = vi.fn()
 
@@ -77,6 +84,20 @@ describe("checkHealth", () => {
 })
 
 describe("predict", () => {
+  it("espera pela inicialização a frio sem exceder o limite da função", () => {
+    // Arranques de 45 a 55 s foram medidos em novembro de 2026 (ADR 0013).
+    expect(PREDICT_TIMEOUT_MS).toBeGreaterThanOrEqual(45_000)
+    expect(PREDICT_TIMEOUT_MS).toBeLessThan(maxDuration * 1000)
+  })
+
+  it("aborta a chamada à API com o timeout configurado", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout")
+    fetchMock.mockImplementation(timeout)
+    await predict(example.booking)
+    expect(timeoutSpy).toHaveBeenCalledWith(PREDICT_TIMEOUT_MS)
+    timeoutSpy.mockRestore()
+  })
+
   it("envia uma reserva e devolve probabilidade, decisão e versão", async () => {
     fetchMock.mockResolvedValue(
       json({
