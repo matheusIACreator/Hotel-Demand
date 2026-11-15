@@ -7,6 +7,7 @@ export const DOCS = {
   adrRegistry: repoFile("docs/adr/0002-registry-por-aliases.md"),
   adrServing: repoFile("docs/adr/0003-serving-e-deploy.md"),
   adrSpark: repoFile("docs/adr/0004-pipelines-spark.md"),
+  coldStart: repoFile("docs/validation/arranque-frio-2026-11-15.md"),
   runbookDeploy: repoFile("docs/runbooks/deploy-azure.md"),
   runbookRollback: repoFile("docs/runbooks/rollback.md"),
   runbookPipelines: repoFile("docs/runbooks/pipelines-spark.md"),

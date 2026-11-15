@@ -16,6 +16,39 @@ IDs com informações pessoais. A coleta real depende do sistema de origem; os l
 contêm os dados necessários para esse vínculo. Valide autorização, retenção e os significados
 dos campos com o produtor antes de usar dados observados.
 
+## Gerar o arquivo de desfechos
+
+Se a origem exporta o estado final das reservas, converta-o com o adaptador em vez de montar o
+Parquet à mão. A exportação precisa de `booking_id`, `reservation_status` e
+`reservation_status_date`, em Parquet ou CSV:
+
+```powershell
+hotelml outcomes --source data/exports/estados-2026-11.parquet --output data/outcomes-2026-11.parquet --available-at '2026-11-30T09:00:00Z'
+```
+
+- `--available-at` é o instante em que a origem disponibilizou a exportação, com fuso. Vira o
+  `resolved_at` de todas as linhas. Não use a data do evento.
+- `Canceled` e `No-Show` contam como cancelamento; `Check-Out` como reserva mantida.
+- Reservas ainda abertas só passam se o estado for declarado, por exemplo
+  `--pending-status Confirmed`. Elas ficam fora do arquivo e continuam pendentes.
+- Um estado desconhecido, data inválida ou posterior à disponibilização, ou ID repetido
+  interrompe a exportação sem gravar nada. Corrija a origem; não edite o resultado.
+
+O comando grava também `<saída>.manifest.json` com contagens por estado e hashes. Confira as
+contagens com a origem antes de avaliar. O `outcomes_sha256` do manifesto tem de ser igual ao
+de `provenance` no relatório de qualidade.
+
+Para verificar a cadeia com dados históricos, sem lote Spark:
+
+```powershell
+.venv/Scripts/python scripts/replay_outcomes.py --source data/raw/data/train-00000-of-00001.parquet --bundle model-bundle --data-kind observed --output data/reports/replay-outcomes-001.json
+```
+
+O replay pontua o período de teste, exporta os desfechos e exige que as métricas coincidam com
+as do alvo (`consistent: true`; código 2 em caso contrário). Em 2026-11-15 coincidiu nas 23.842
+reservas, com ROC AUC 0,8614. Isso valida o adaptador e a avaliação; não é qualidade em
+reservas novas. Detalhes: [ADR 0014](../adr/0014-desfechos-e-retreino-operacional.md).
+
 ## Comando
 
 ```powershell

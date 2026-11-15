@@ -168,9 +168,13 @@ export default function Page() {
               <h3 className="font-medium">Inicialização a frio</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Com zero réplicas em repouso, o primeiro pedido depois de uma
-                pausa espera o container iniciar e carregar o modelo. A
-                readiness só passa depois de o modelo carregar.
+                pausa espera o container iniciar e carregar o modelo. Em três
+                medições de 15/11/2026, essa primeira resposta levou de 30 a 31
+                segundos; as seguintes, menos de 2 segundos.
               </p>
+              <DocLink href={DOCS.coldStart} className="text-sm">
+                Análise do arranque a frio
+              </DocLink>
             </li>
             <li className="space-y-2 surface p-5">
               <h3 className="font-medium">Rollback</h3>
