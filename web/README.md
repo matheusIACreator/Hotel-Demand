@@ -36,13 +36,21 @@ entrada duram cerca de 200 ms e são desativadas com `prefers-reduced-motion`.
 ## Integração com a API
 
 O navegador nunca chama a Azure diretamente: `app/api/health` e `app/api/predict` são rotas de
-servidor que leem `HOTELML_API_URL`, aplicam timeout (8 s na saúde, 20 s na previsão) e
+servidor que leem `HOTELML_API_URL`, aplicam timeout (8 s na saúde, 50 s na previsão) e
 convertem as respostas em estados explícitos (`lib/server/hotelml-api.ts`). Copie
 `.env.example` para `.env.local` para desenvolvimento; na Vercel, defina a variável no projeto.
 
-A Container App escala para zero réplicas. Timeouts e respostas 502/503/504 são tratados como
-"Iniciando o serviço…": o navegador volta a consultar `/api/health` com intervalos crescentes
-durante até 3 minutos e para assim que a API fica pronta, para não manter a réplica acordada.
+A Container App escala para zero réplicas e leva cerca de 31 s para atender a primeira chamada
+depois de uma pausa (medido em 2026-11-15). O ingress da Azure retém o pedido durante o
+arranque, por isso `/api/predict` espera até 50 s e declara `maxDuration = 60`: a primeira
+chamada é atendida sem repetição. Com o limite anterior de 20 s ela falhava sempre; ver
+[ADR 0013](../docs/adr/0013-arranque-frio-e-piloto-2.md). `PREDICT_TIMEOUT_MS` tem de ficar
+abaixo de `maxDuration`, e um teste verifica essa relação.
+
+O simulador mostra "Iniciando o serviço…" quando a resposta demora mais de 4 s. Se o proxy
+ainda assim esgotar o tempo, ou a API responder 502/503/504, o navegador consulta `/api/health`
+com intervalos crescentes durante até 3 minutos e repete a previsão quando a API fica pronta.
+A Visão geral para de consultar assim que a API responde, para não manter a réplica acordada.
 
 ## Contrato
 

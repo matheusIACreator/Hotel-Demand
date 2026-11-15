@@ -4,14 +4,14 @@ Previsão de cancelamento de reservas de hotel, usada como pretexto para constru
 ciclo completo de ML em produção: dados, treino reprodutível, registry, serving, monitoramento,
 alertas e operação, com infraestrutura em código na Azure.
 
-## Estado atual: frontend publicado, API com CD e pipelines Spark validados
+## Estado atual: frontend publicado, API com CD, pipelines Spark e ferramentas de operação
 
 | Fase | Conteúdo | Estado |
 |---|---|---|
 | 1 | Pacote, testes, CI, treino com MLflow, registry champion/challenger | **feito** |
 | 2 | API FastAPI em container + Terraform na Azure + CD | API publicada; CD configurado com OIDC e bundle aprovado |
 | 3 | Feature pipeline e batch scoring em PySpark | implementada e validada localmente |
-| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | telemetria, alertas, drift, qualidade offline, SLIs internos e sondagem externa implementados; piloto horário de 14 dias preparado; fonte real de desfechos, metas validadas e retreino operacional pendentes |
+| 4 | Monitoramento (drift, qualidade), alertas, SLOs, runbooks, retraining | ferramentas completas e testadas: telemetria, alertas, drift, qualidade com adaptador de desfechos, SLIs, sondagem externa, gatilhos e retreino candidato; arranque a frio corrigido. Dependem de decisão ou de dados: aprovar as metas e a política de retreino, concluir o piloto 2 e ligar uma origem real de desfechos |
 | 5 | LLMOps com Anthropic: tracing, evals, prompts versionados, guardrails, custo | pendente |
 | 6 | Post-mortem simulado, template reutilizável, diagrama de arquitetura | pendente |
 
@@ -237,9 +237,18 @@ monitoramento de uma janela real de produção.
 --data-kind synthetic|observed --output <novo.json>` liga previsões e resultados finais pelo
 ID da reserva. O relatório mostra cobertura, pendências e métricas somente dos desfechos
 conhecidos no corte; dados insuficientes e métricas indefinidas ficam sem valor. Não executa
-novas previsões ou promoção automática. A fonte real de desfechos ainda precisa ser conectada.
+novas previsões ou promoção automática.
 Contrato e interpretação: [runbook](docs/runbooks/qualidade-desfechos.md) e
 [ADR 0008](docs/adr/0008-avaliacao-com-desfechos.md).
+
+`hotelml outcomes --source <exportação> --output <novo.parquet> --available-at <data-com-fuso>`
+converte os estados finais exportados pela origem (`reservation_status` e a sua data) nesse
+contrato: rejeita estados desconhecidos, exclui reservas declaradas pendentes e usa o instante
+de disponibilização como `resolved_at`. Em 2026-11-15, um replay com as 23.842 reservas do
+período de teste do dataset real reproduziu exatamente as métricas do treino (ROC AUC 0,8614)
+a partir dos desfechos exportados. Isso valida a cadeia com dados observados, não a qualidade
+em reservas novas: nenhum sistema de hotel está ligado ao projeto.
+[ADR 0014](docs/adr/0014-desfechos-e-retreino-operacional.md).
 
 ## Exercício local de retreino
 
@@ -247,6 +256,34 @@ Contrato e interpretação: [runbook](docs/runbooks/qualidade-desfechos.md) e
 baseline histórico e um challenger com mais dados sintéticos em registry temporário. Verifica
 o bloqueio de uma promoção, compara ambos no mesmo teste temporal e valida o bundle selecionado
 com readiness e inferência HTTP local. O relatório registra métricas e decisões reais do ensaio;
-não representa melhoria em produção. Fonte de desfechos, gatilhos e agendamento operacionais
-continuam pendentes. Comandos e limites: [runbook](docs/runbooks/retreino.md) e
+não representa melhoria em produção. Comandos e limites: [runbook](docs/runbooks/retreino.md) e
 [ADR 0009](docs/adr/0009-exercicio-retreino.md).
+
+## Gatilhos e retreino candidato
+
+`hotelml retrain-check --trained-at <data> --drift <json> --quality <json> --output <novo.json>`
+avalia três gatilhos de uma política versionada (`monitoring/retraining-policy.json`): drift
+nos dois relatórios mais recentes, ROC AUC observada abaixo do piso e idade do modelo. Só
+recomenda; com a política ainda em `proposed`, mostra os sinais sem veredito.
+
+`python scripts/retrain_candidate.py --source <dados> --baseline-bundle model-bundle --trigger
+<motivo> --output <novo-diretório>` treina sem promover, reavalia o bundle aprovado no mesmo
+teste temporal e, só se o candidato for melhor, gera o pacote com SHA-256 para o CD. O champion
+e a API não mudam. Com o dataset atual, o retreino reproduziu as métricas da versão 1 e não
+gerou candidato. Não há agendamento automático porque o registry é local.
+[ADR 0014](docs/adr/0014-desfechos-e-retreino-operacional.md).
+
+## Arranque a frio e piloto de disponibilidade
+
+O primeiro piloto externo coletou 17 tentativas principais e todas falharam. A causa era
+determinística: sair de zero réplicas levava 45 a 55 s, dos quais cerca de 29 s eram a readiness
+probe a exigir três sucessos, e o proxy da Vercel desistia aos 20 s. Em 2026-11-14 a readiness
+passou a aceitar um sucesso e o proxy a esperar 50 s. Em três arranques medidos, a primeira
+chamada foi atendida em 30,2 a 31,1 s. O arranque continua perceptível; a interface avisa.
+
+O piloto 2 (`external-20261116`, 14 dias) usa timeout de 60 s para registrar a duração real, e
+`scripts/probe_pilot.py review` resume os journals. As metas em `monitoring/slo-policy.json`
+são propostas e só geram veredito depois de aprovadas. A cobertura do agendador do GitHub foi
+de 14% no primeiro piloto e não foi corrigida. Análise e decisões:
+[validação](docs/validation/arranque-frio-2026-11-15.md) e
+[ADR 0013](docs/adr/0013-arranque-frio-e-piloto-2.md).

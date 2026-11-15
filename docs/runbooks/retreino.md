@@ -29,6 +29,46 @@ dos resultados calculados. Datas e métricas do ensaio não representam tráfego
 Um erro de validação impede a gravação de um relatório de sucesso. Registry e bundles são
 removidos ao terminar, inclusive na falha; somente o relatório agregado permanece.
 
+## Verificar os gatilhos
+
+`hotelml retrain-check` transforma relatórios existentes numa recomendação. Não treina.
+
+```powershell
+hotelml retrain-check --trained-at '2026-10-21T21:51:18Z' --drift data/batch/run-001/drift.json --drift data/batch/run-002/drift.json --quality data/reports/quality-001.json --output data/reports/retrain-check-001.json
+```
+
+A política está em `monitoring/retraining-policy.json`: drift nos 2 relatórios mais recentes,
+ROC AUC observada abaixo de 0,80 ou modelo com mais de 180 dias. Relatórios sintéticos e com
+dados insuficientes não acionam; o motivo aparece em `notes`. Use `--as-of` para fixar o
+instante da avaliação ao reproduzir uma decisão.
+
+Enquanto a política estiver em `proposed`, o relatório lista os sinais e deixa
+`retrain_recommended` nulo. O responsável aprova mudando `status` para `approved`. A partir
+daí o código 2 significa "retreino recomendado". Não há agendamento automático: o registry é
+local, então a verificação é feita por quem o opera, por exemplo a cada lote monitorado.
+
+## Retreino candidato
+
+Com um gatilho, treine um candidato contra o bundle aprovado em produção:
+
+```powershell
+.venv/Scripts/python scripts/retrain_candidate.py --source data/novas-reservas.parquet --baseline-bundle model-bundle --trigger drift --evidence data/reports/retrain-check-001.json --output data/reports/retrain-candidate-001
+```
+
+1. `report.json`: confira `test_cutoff`, linhas de treino e teste, e as métricas dos dois
+   modelos no **mesmo** teste. `candidate_better` só é verdadeiro se a ROC AUC superar a do
+   aprovado por mais que `--min-delta`.
+2. Sem ganho, só o relatório é gravado. A versão nova fica no registry como `challenger`.
+3. Com ganho, o diretório traz `candidate-bundle/` e `model-bundle.tar.gz`; `release` informa
+   `model_sha256` e `model_version` para o workflow **Deploy Azure**.
+4. `approval: pending_human_review`: o script não promove nem publica. Revise coortes, classes
+   e o corte antes de criar a release, e siga o [runbook de deploy](deploy-azure.md).
+
+O champion e a API não mudam em nenhum caso. Se o bundle aprovado foi treinado com reservas
+posteriores ao corte do novo teste, a comparação favorece-o; o manifesto não permite verificar
+isso automaticamente. Em 2026-11-15, o retreino com o mesmo dataset reproduziu as métricas da
+versão 1 e não gerou candidato. Decisões: [ADR 0014](../adr/0014-desfechos-e-retreino-operacional.md).
+
 ## Retreino com dados observados
 
 Antes de usar o fluxo existente com uma fonte real, documente a origem autorizada, o corte de

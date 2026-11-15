@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "status": "proposed",
+  "consecutive_drift_reports": 2,
+  "min_observed_roc_auc": 0.8,
+  "max_model_age_days": 180
+}

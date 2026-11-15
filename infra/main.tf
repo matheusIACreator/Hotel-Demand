@@ -82,15 +82,15 @@ resource "azurerm_container_app" "api" {
       cpu    = 0.5
       memory = "1Gi"
 
-      # Verificar a cada 2 s encurta a espera entre o modelo carregar e a réplica ser aceita.
-      # 75 falhas mantêm os mesmos 150 s de tolerância para o arranque.
+      # Verificar a cada segundo encurta a espera entre o modelo carregar e a réplica ser aceita.
+      # 150 falhas mantêm os mesmos 150 s de tolerância para o arranque.
       startup_probe {
         transport               = "HTTP"
         port                    = 8000
         path                    = "/health/ready"
-        interval_seconds        = 2
-        failure_count_threshold = 75
-        timeout                 = 2
+        interval_seconds        = 1
+        failure_count_threshold = 150
+        timeout                 = 1
       }
       liveness_probe {
         transport        = "HTTP"
@@ -102,15 +102,15 @@ resource "azurerm_container_app" "api" {
       # O provider exige 3 sucessos seguidos por omissão; com intervalo de 10 s, a réplica já
       # pronta ficava 20 a 30 s sem receber o pedido que a acordou (ADR 0013). O modelo carrega
       # antes de a porta abrir, por isso um único sucesso basta. A tolerância a falhas mantém
-      # os 30 s anteriores (10 x 3 s).
+      # os 30 s anteriores (30 x 1 s).
       readiness_probe {
         transport               = "HTTP"
         port                    = 8000
         path                    = "/health/ready"
-        interval_seconds        = 3
+        interval_seconds        = 1
         success_count_threshold = 1
-        failure_count_threshold = 10
-        timeout                 = 3
+        failure_count_threshold = 30
+        timeout                 = 1
       }
     }
     http_scale_rule {

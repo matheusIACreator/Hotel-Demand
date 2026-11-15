@@ -4,7 +4,7 @@ This file provides guidance to Codex (claude.ai/code) when working with code in 
 
 ## Project
 
-`hotelml`: reference MLOps platform that predicts hotel booking cancellations (training, MLflow registry, FastAPI serving, Azure infra via Terraform). Docs, comments and commit/ADR text are written in Portuguese; keep new prose in Portuguese to match. A fase 3 (features e scoring PySpark) está implementada; as fases 4–6 continuam pendentes. Consulte a tabela em [README.md](README.md).
+`hotelml`: reference MLOps platform that predicts hotel booking cancellations (training, MLflow registry, FastAPI serving, Azure infra via Terraform). Docs, comments and commit/ADR text are written in Portuguese; keep new prose in Portuguese to match. As fases 1–4 têm ferramentas implementadas; a 4 aguarda aprovação de políticas e dados reais, e as fases 5–6 continuam pendentes. Consulte a tabela em [README.md](README.md).
 
 ## Commands
 
@@ -40,6 +40,24 @@ O CD aceita bundle de release (`model_release`, `model_sha256`, `model_version`)
 `scripts/model_release.py` valida integridade, manifesto e caminhos antes da extração. O ambiente
 `azure-dev` permite apenas `main`. O subject OIDC deste repositório inclui IDs numéricos; use o
 valor documentado no runbook, que corresponde à assertion emitida pelo GitHub.
+
+## Operação (fase 4)
+
+- `observability.py` (eventos JSON no stdout), `slo.py` (SLIs internos), `probe.py` (sondagem
+  externa finita), `drift.py`/`reference.py` e `quality.py` (previsões contra desfechos finais).
+- `outcomes.py` converte estados finais da origem no contrato de desfechos; `retraining.py`
+  avalia gatilhos. `scripts/replay_outcomes.py` e `scripts/retrain_candidate.py` validam a
+  cadeia com dados reais e produzem um candidato sem promover.
+- Políticas versionadas em `monitoring/` (`external-pilot.json`, `slo-policy.json`,
+  `retraining-policy.json`). As duas últimas nascem com `status: proposed`: as ferramentas mostram
+  taxas e sinais mas só dão veredito com `approved`. Não mude o estado por conta própria; é uma
+  decisão do responsável, e metas têm de ser fixadas antes de ver os resultados.
+- Arranque a frio: ~31 s da primeira chamada à resposta (ADR 0013). O proxy `/api/predict` espera
+  50 s e `PREDICT_TIMEOUT_MS` tem de ficar abaixo de `maxDuration`. Readiness com um sucesso; não
+  volte ao padrão de 3 do provider.
+- Relatórios nunca sobrescrevem um destino existente e não guardam IDs nem reservas.
+- Terraform: o binário está em `.tools/terraform/`. `monitoring.tf` em CRLF faz o plano mostrar
+  diferenças só de fim de linha nas regras de alerta; aplique com `-target` o que mudou de fato.
 
 ## Frontend (`web/`)
 

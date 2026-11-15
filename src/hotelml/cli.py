@@ -64,6 +64,43 @@ def _cmd_quality(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_outcomes(args: argparse.Namespace) -> int:
+    from hotelml.outcomes import export_outcomes
+
+    summary = export_outcomes(
+        Path(args.source),
+        Path(args.output),
+        available_at=args.available_at,
+        pending_statuses=args.pending_status,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    return 0
+
+
+def _cmd_retrain_check(args: argparse.Namespace) -> int:
+    from hotelml.retraining import retraining_report
+
+    result = retraining_report(
+        Path(args.policy),
+        Path(args.output),
+        trained_at=args.trained_at,
+        drift=[Path(path) for path in args.drift],
+        quality=Path(args.quality) if args.quality else None,
+        now=args.as_of,
+    )
+    print(
+        json.dumps(
+            {
+                "report": args.output,
+                "status": result["status"],
+                "retrain_recommended": result["retrain_recommended"],
+                "signals": [signal["kind"] for signal in result["signals"]],
+            }
+        )
+    )
+    return 2 if result["retrain_recommended"] else 0
+
+
 def _cmd_slo(args: argparse.Namespace) -> int:
     from hotelml.slo import slo_report
 
@@ -230,6 +267,24 @@ def build_parser() -> argparse.ArgumentParser:
     quality.add_argument("--data-kind", required=True, choices=["synthetic", "observed"])
     quality.add_argument("--minimum-rows", type=int, default=30)
     quality.set_defaults(func=_cmd_quality)
+
+    outcomes = sub.add_parser("outcomes", help="converte estados finais da origem em desfechos")
+    outcomes.add_argument("--source", required=True, help="Parquet/CSV com ID, estado e data")
+    outcomes.add_argument("--output", required=True, help="novo Parquet no contrato de desfechos")
+    outcomes.add_argument("--available-at", required=True, help="disponibilização, com fuso")
+    outcomes.add_argument(
+        "--pending-status", action="append", default=[], help="estado ainda aberto, a excluir"
+    )
+    outcomes.set_defaults(func=_cmd_outcomes)
+
+    check = sub.add_parser("retrain-check", help="avalia gatilhos de retreino; código 2 recomenda")
+    check.add_argument("--policy", default="monitoring/retraining-policy.json")
+    check.add_argument("--trained-at", required=True, help="data do treino do modelo, com fuso")
+    check.add_argument("--drift", action="append", default=[], help="relatório de drift (JSON)")
+    check.add_argument("--quality", help="relatório de qualidade com desfechos observados")
+    check.add_argument("--as-of", help="instante da avaliação, com fuso (padrão: agora)")
+    check.add_argument("--output", required=True, help="novo relatório JSON")
+    check.set_defaults(func=_cmd_retrain_check)
 
     reference = sub.add_parser("reference", help="exporta referência do run explícito de um bundle")
     reference.add_argument("--bundle", required=True)

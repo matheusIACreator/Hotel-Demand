@@ -56,13 +56,17 @@ def test_first_created_run_owns_slot_and_delays_do_not_catch_up(pilot, policy):
 
 
 def test_yesterday_slot_cannot_spend_today_request_budget(pilot, policy):
-    created = pilot["timestamp"]("2026-11-09T23:17:00Z")
+    start = pilot["timestamp"](policy["start"])
+    # Último slot que começa no dia UTC do início; a sua hora termina já no dia seguinte.
+    slot = 23 - start.hour
+    created = start + timedelta(hours=slot)
     current = {"id": 10, "event": "schedule", "run_attempt": 1, "created_at": created.isoformat()}
-    late = pilot["timestamp"]("2026-11-10T00:01:00Z")
-    assert pilot["slot_for"](policy, late) == 2
-    assert not pilot["slot_open"](policy, 2, late)
+    late = created.replace(hour=0, minute=1) + timedelta(days=1)
+    assert created.date() != late.date()
+    assert pilot["slot_for"](policy, late) == slot
+    assert not pilot["slot_open"](policy, slot, late)
     assert pilot["reserve_slot"](policy, [current], current, late) is None
-    assert pilot["slot_open"](policy, 2, created)
+    assert pilot["slot_open"](policy, slot, created)
 
 
 @pytest.mark.parametrize("failed,calls", [(0, 1), (1, 3)])
@@ -157,6 +161,8 @@ def test_empty_audit_before_pilot_and_complete_final_window(pilot, policy):
         ("diagnostic_attempts", 10),
         ("retention_days", 7),
         ("end", "2027-01-01T00:00:00Z"),
+        ("timeout_seconds", 29),
+        ("timeout_seconds", 61),
     ],
 )
 def test_policy_cannot_expand_approved_traffic_or_duration(pilot, policy, tmp_path, field, value):
@@ -166,3 +172,198 @@ def test_policy_cannot_expand_approved_traffic_or_duration(pilot, policy, tmp_pa
     path.write_text(json.dumps(invalid))
     with pytest.raises(ValueError):
         pilot["load_policy"](path)
+
+
+def test_timeout_covers_the_measured_cold_start(policy):
+    # Arranques a frio de ~31 s foram medidos em 2026-11-15; um timeout menor censura a duração.
+    assert policy["timeout_seconds"] == 60
+
+
+def _artifact(root, name, primary, diagnostics=(), success_marker=True):
+    base = root / name
+    for folder, attempts in [("primary", [primary])] + [
+        (f"diagnostic-{i}", [d]) for i, d in enumerate(diagnostics, 1)
+    ]:
+        (base / folder).mkdir(parents=True)
+        (base / folder / "attempts.jsonl").write_text(
+            "".join(json.dumps(a) + chr(10) for a in attempts), encoding="utf-8"
+        )
+        if success_marker:
+            (base / folder / "_SUCCESS").touch()
+
+
+def _attempt(started, seconds, outcome="success", status=200):
+    start = datetime.fromisoformat(started)
+    return {
+        "sequence": 1,
+        "started_at": start.isoformat(),
+        "http_status": status,
+        "outcome": outcome,
+        "duration_ms": seconds * 1000,
+        "finished_at": (start + timedelta(seconds=seconds)).isoformat(),
+    }
+
+
+def test_review_summarizes_durations_recovery_and_coverage(pilot, policy, tmp_path):
+    prefix = "probe-" + policy["pilot_id"]
+    start = pilot["timestamp"](policy["start"])
+    first = start.isoformat()
+    # Mesma forma do slot 21 do primeiro piloto: 504 aos ~21 s e recuperação no diagnóstico.
+    _artifact(
+        tmp_path,
+        f"{prefix}-0-failure",
+        _attempt(first, 20.9, "http_error", 504),
+        [
+            _attempt((start + timedelta(seconds=26)).isoformat(), 19.0),
+            _attempt((start + timedelta(seconds=50)).isoformat(), 0.5),
+        ],
+    )
+    _artifact(tmp_path, f"{prefix}-1-success", _attempt(first, 31.0))
+    _artifact(tmp_path, f"{prefix}-3-success", _attempt(first, 0.4))
+    # Sem marcador de conclusão e de outro piloto: não entram nas estatísticas.
+    _artifact(tmp_path, f"{prefix}-4-success", _attempt(first, 1.0), success_marker=False)
+    _artifact(tmp_path, "probe-outro-piloto-5-success", _attempt(first, 1.0))
+    (tmp_path / "audit.json").write_text("{}")
+
+    result = pilot["review"](policy, tmp_path, start + timedelta(hours=4, minutes=30))
+    assert result["expected_slots_so_far"] == 5
+    assert result["slots_with_primary"] == 3
+    assert result["collection_coverage"] == pytest.approx(3 / 5)
+    assert result["skipped_artifacts"] == [f"{prefix}-4-success"]
+    assert result["primary_successes"] == 2 and result["primary_failures"] == 1
+    assert result["primary_success_rate_observed"] == pytest.approx(2 / 3)
+    assert result["primary_outcomes"] == {"http_error": 1, "success": 2}
+    assert result["primary_http_statuses"] == {"200": 2, "504": 1}
+    assert result["primary_success_duration_ms"]["max"] == 31000
+    assert result["primary_failure_duration_ms"]["count"] == 1
+    # Da primeira chamada ao fim do primeiro diagnóstico bem-sucedido: 26 s + 19 s.
+    assert result["recovery_seconds"]["max"] == pytest.approx(45)
+    assert result["slots"]["0"]["diagnostic_outcomes"] == ["success", "success"]
+    assert result["slots"]["1"]["recovery_seconds"] is None
+    assert result["slo_status"] == "not_evaluated"
+
+
+def test_review_before_start_and_without_artifacts_has_no_rates(pilot, policy, tmp_path):
+    start, end = pilot["timestamp"](policy["start"]), pilot["timestamp"](policy["end"])
+    before = pilot["review"](policy, tmp_path, start - timedelta(seconds=1))
+    assert before["expected_slots_so_far"] == 0
+    assert before["collection_coverage"] is None
+    assert before["primary_success_rate_observed"] is None
+    assert before["primary_success_duration_ms"]["p95"] is None
+    after = pilot["review"](policy, tmp_path, end + timedelta(days=1))
+    assert after["expected_slots_so_far"] == 336
+    assert after["collection_coverage"] == 0
+
+
+def test_review_cli_never_overwrites_a_report(pilot, tmp_path, monkeypatch):
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    output = tmp_path / "review.json"
+    argv = ["probe_pilot.py", "review", "--artifacts", str(artifacts), "--output", str(output)]
+    argv += ["--policy", str(Path(__file__).parents[1] / "monitoring/external-pilot.json")]
+    monkeypatch.setattr("sys.argv", argv)
+    assert pilot["main"]() == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["slots_with_primary"] == 0
+    with pytest.raises(FileExistsError):
+        pilot["main"]()
+
+
+@pytest.fixture
+def slo(pilot):
+    return pilot["load_slo"](Path(__file__).parents[1] / "monitoring/slo-policy.json")
+
+
+def _review(pilot, policy, tmp_path, durations, failures=0):
+    prefix = "probe-" + policy["pilot_id"]
+    start = pilot["timestamp"](policy["start"])
+    for slot, seconds in enumerate(durations):
+        _artifact(tmp_path, f"{prefix}-{slot}-success", _attempt(start.isoformat(), seconds))
+    for slot in range(len(durations), len(durations) + failures):
+        _artifact(
+            tmp_path, f"{prefix}-{slot}-failure", _attempt(start.isoformat(), 60, "timeout", None)
+        )
+    return pilot["review"](policy, tmp_path, start + timedelta(days=13))
+
+
+def test_versioned_targets_belong_to_this_pilot_and_await_approval(policy, slo):
+    assert slo["external"]["pilot_id"] == policy["pilot_id"]
+    assert slo["external"]["duration_ms"] < policy["timeout_seconds"] * 1000
+    # Metas propostas não podem gerar um veredito antes de o responsável as aprovar.
+    assert slo["status"] == "proposed"
+
+
+def test_proposed_policy_reports_rates_without_a_verdict(pilot, policy, slo, tmp_path):
+    result = pilot["evaluate"](_review(pilot, policy, tmp_path, [31] * 40), slo)
+    assert result["status"] == "policy_not_approved"
+    assert result["success"]["observed"] == 1 and result["success"]["met"] is None
+    assert result["duration"]["met"] is None
+
+
+def test_approved_policy_needs_volume_and_counts_failures_as_slow(pilot, policy, slo, tmp_path):
+    approved = {**slo, "status": "approved"}
+    few = pilot["evaluate"](_review(pilot, policy, tmp_path / "few", [31] * 29), approved)
+    assert few["status"] == "insufficient_data" and few["success"]["met"] is None
+
+    # 36 rápidas, 2 lentas e 2 falhas em 40: sucesso 95%, mas só 90% dentro de 45 s.
+    mixed = _review(pilot, policy, tmp_path / "mixed", [31] * 36 + [50] * 2, failures=2)
+    result = pilot["evaluate"](mixed, approved)
+    assert result["status"] == "ready"
+    assert result["success"]["observed"] == pytest.approx(0.95) and result["success"]["met"]
+    assert result["duration"]["observed"] == pytest.approx(0.9) and result["duration"]["met"]
+
+    worse = _review(pilot, policy, tmp_path / "worse", [31] * 35 + [50] * 2, failures=3)
+    result = pilot["evaluate"](worse, approved)
+    assert not result["success"]["met"] and not result["duration"]["met"]
+
+
+def test_targets_of_another_pilot_are_not_applied(pilot, policy, slo, tmp_path):
+    other = {**slo, "status": "approved", "external": {**slo["external"], "pilot_id": "outro"}}
+    result = pilot["evaluate"](_review(pilot, policy, tmp_path, [31] * 40), other)
+    assert result["status"] == "wrong_pilot" and result["success"]["met"] is None
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"status": "validated"},
+        {"external": {"minimum_primaries": 0}},
+        {"external": {"success_target": 1}},
+        {"external": {"duration_ms": 61000}},
+    ],
+)
+def test_invalid_slo_policy_is_rejected(pilot, slo, tmp_path, change):
+    invalid = copy.deepcopy(slo)
+    for key, value in change.items():
+        if isinstance(value, dict):
+            invalid[key].update(value)
+        else:
+            invalid[key] = value
+    path = tmp_path / "slo.json"
+    path.write_text(json.dumps(invalid))
+    with pytest.raises(ValueError):
+        pilot["load_slo"](path)
+
+
+def test_review_cli_returns_2_only_for_a_violated_approved_target(
+    pilot, policy, slo, tmp_path, monkeypatch
+):
+    artifacts = tmp_path / "artifacts"
+    _review(pilot, policy, artifacts, [31] * 20, failures=20)
+    approved = tmp_path / "slo.json"
+    approved.write_text(json.dumps({**slo, "status": "approved"}))
+    root = Path(__file__).parents[1]
+
+    class Clock(datetime):
+        @staticmethod
+        def now(_):
+            return pilot["timestamp"](policy["start"]) + timedelta(days=13)
+
+    monkeypatch.setitem(pilot["main"].__globals__, "datetime", Clock)
+    for name, path, code in (("a", approved, 2), ("b", root / "monitoring/slo-policy.json", 0)):
+        argv = ["probe_pilot.py", "review", "--artifacts", str(artifacts)]
+        argv += ["--output", str(tmp_path / f"{name}.json"), "--slo", str(path)]
+        argv += ["--policy", str(root / "monitoring/external-pilot.json")]
+        monkeypatch.setattr("sys.argv", argv)
+        assert pilot["main"]() == code
+    report = json.loads((tmp_path / "a.json").read_text(encoding="utf-8"))
+    assert report["slo_status"] == "ready" and report["evaluation"]["success"]["met"] is False

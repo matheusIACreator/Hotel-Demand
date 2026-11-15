@@ -35,10 +35,19 @@ def export_champion(settings: Settings, output: Path) -> dict[str, str]:
     """Resolve o alias uma vez e copia a versão exata; nunca sobrescreve um bundle."""
     if output.exists():
         raise FileExistsError(f"destino já existe: {output}")
+    client = MlflowClient(tracking_uri=settings.tracking_uri, registry_uri=settings.tracking_uri)
+    version = client.get_model_version_by_alias(settings.model_name, CHAMPION)
+    return export_version(settings, str(version.version), output)
+
+
+def export_version(settings: Settings, number: str, output: Path) -> dict[str, str]:
+    """Copia uma versão explícita do registry, sem depender nem alterar aliases."""
+    if output.exists():
+        raise FileExistsError(f"destino já existe: {output}")
     mlflow.set_tracking_uri(settings.tracking_uri)
     mlflow.set_registry_uri(settings.tracking_uri)
     client = MlflowClient(tracking_uri=settings.tracking_uri, registry_uri=settings.tracking_uri)
-    version = client.get_model_version_by_alias(settings.model_name, CHAMPION)
+    version = client.get_model_version(settings.model_name, number)
     manifest = {
         "model_name": settings.model_name,
         "model_version": str(version.version),
