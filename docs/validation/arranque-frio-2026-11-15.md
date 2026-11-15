@@ -76,7 +76,8 @@ Publicação em 2026-11-14 (UTC): revisão `api-hotelml-dev--0000003` às 23:43 
 `api-hotelml-dev--0000004` às 23:55, ambas com a imagem
 `sha256:d4bbf505…44a731` da revisão anterior; frontend em produção às 23:56
 (`dpl_3Btfp6MjvivP7RTobFt3tt3EGFaM`), promovido a partir do build da branch
-`fix/arranque-frio-e-fase4`.
+`fix/arranque-frio-e-fase4`. Às 00:05 de 2026-11-15 o PR #8 integrou esse commit na `main` e a
+Vercel publicou-a (`dpl_92tm4nJv9hMjShdxM3PWKZfVT7eQ`), com o mesmo código do proxy.
 
 ## Medições depois da correção
 
@@ -106,6 +107,20 @@ Linha do tempo da medição 2, com os horários declarados pela API para os even
 A espera depois de o modelo estar pronto caiu de 29 s para cerca de 5,5 s. Passar as probes de
 2–3 s para 1 s (revisão 3 para 4) não trouxe ganho mensurável: 30,7 s contra 31,1 s e 30,2 s.
 Os ~5,5 s restantes não acompanham o intervalo das probes; a causa não foi isolada.
+
+## Primeiros slots do piloto depois da correção
+
+O piloto 1 continuou a correr com o timeout de 30 s. Pelos nomes dos artefatos, consultados em
+2026-11-15 às 17:02 UTC:
+
+| Slot | Artefato criado (UTC) | Resultado da principal |
+| --- | --- | --- |
+| 124 | 15/11 01:55 | falha |
+| 132 | 15/11 09:23 | **sucesso**, o primeiro do piloto |
+
+Um sucesso e uma falha com o mesmo sistema é o que se espera de um arranque de ~31 s medido
+contra um limite de 30 s. Os journals não foram lidos, por isso o motivo da falha do slot 124
+(timeout do coletor ou outro) não está confirmado. Duas amostras não formam uma taxa.
 
 ## O que não foi resolvido
 
