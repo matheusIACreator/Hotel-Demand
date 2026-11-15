@@ -64,6 +64,30 @@ def _cmd_quality(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_explain(args: argparse.Namespace) -> int:
+    from hotelml.explain import explain_report
+
+    result = explain_report(
+        Path(args.bundle),
+        Path(args.reference),
+        Path(args.booking),
+        Path(args.output),
+        permutations=args.permutations,
+        seed=args.seed,
+    )
+    print(
+        json.dumps(
+            {
+                "report": args.output,
+                "probability": result["probability"],
+                "baseline_probability": result["baseline_probability"],
+                "top_factors": [factor["field"] for factor in result["factors"][:5]],
+            }
+        )
+    )
+    return 0
+
+
 def _cmd_outcomes(args: argparse.Namespace) -> int:
     from hotelml.outcomes import export_outcomes
 
@@ -267,6 +291,13 @@ def build_parser() -> argparse.ArgumentParser:
     quality.add_argument("--data-kind", required=True, choices=["synthetic", "observed"])
     quality.add_argument("--minimum-rows", type=int, default=30)
     quality.set_defaults(func=_cmd_quality)
+
+    explain = sub.add_parser("explain", help="fatores de uma previsão por valores de Shapley")
+    for name in ("bundle", "reference", "booking", "output"):
+        explain.add_argument(f"--{name}", required=True)
+    explain.add_argument("--permutations", type=int, default=1000)
+    explain.add_argument("--seed", type=int, default=0)
+    explain.set_defaults(func=_cmd_explain)
 
     outcomes = sub.add_parser("outcomes", help="converte estados finais da origem em desfechos")
     outcomes.add_argument("--source", required=True, help="Parquet/CSV com ID, estado e data")
