@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "prompt_id": "explain-booking",
+  "active": "v1",
+  "versions": {
+    "v1": {
+      "file": "v1.md",
+      "sha256": "62f1723a0e9e12fe094a1cf613cac9a07579c26192f9670c3088e4f079c4aedd",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "max_tokens": 16000,
+      "created": "2026-11-15",
+      "note": "Primeira versão: fatos em JSON, saída estruturada, sem exemplos."
+    }
+  }
+}

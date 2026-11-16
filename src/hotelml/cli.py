@@ -88,6 +88,58 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_narrate(args: argparse.Namespace) -> int:
+    from hotelml.llm import cost_usd, file_tracer_provider, load_prices, load_prompt, narrate
+    from hotelml.narrative import build_facts, template_explanation
+
+    output = Path(args.output)
+    if output.exists():
+        raise FileExistsError(output)
+    facts = build_facts(json.loads(Path(args.factors).read_text(encoding="utf-8")))
+    prompt = load_prompt("explain_booking", args.prompt_version)
+    prices = load_prices(Path(args.prices))
+    # Falha cedo se o modelo do prompt não tiver preço: nenhuma chamada sem custo conhecido.
+    cost_usd({"input_tokens": 0, "output_tokens": 0}, prompt.model, prices)
+    if args.dry_run:
+        result = {
+            "schema_version": 1,
+            "status": "dry_run",
+            "source": "template",
+            "explanation": template_explanation(facts).model_dump(),
+            "facts": facts,
+            "prompt": {"id": prompt.prompt_id, "version": prompt.version, "sha256": prompt.sha256},
+            "model_requested": prompt.model,
+        }
+    else:
+        import anthropic
+
+        provider = file_tracer_provider(Path(args.trace_file)) if args.trace_file else None
+        client = anthropic.Anthropic(
+            open_telemetry={"tracer_provider": provider} if provider else False
+        )
+        try:
+            result = narrate(facts, prompt, client, prices, tracer_provider=provider)
+        except anthropic.AuthenticationError:
+            print("erro: credencial da Anthropic ausente ou inválida", file=sys.stderr)
+            return 1
+        except anthropic.RateLimitError:
+            print("erro: limite de taxa da API; tente novamente mais tarde", file=sys.stderr)
+            return 1
+        except anthropic.APIStatusError as exc:
+            print(f"erro: a API respondeu {exc.status_code}", file=sys.stderr)
+            return 1
+        except anthropic.APIConnectionError:
+            print("erro: não foi possível contactar a API da Anthropic", file=sys.stderr)
+            return 1
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as stream:
+        json.dump(result, stream, indent=2, ensure_ascii=False, allow_nan=False)
+    summary = {key: result.get(key) for key in ("status", "source", "cost_usd", "model_served")}
+    print(json.dumps({"report": args.output, **summary}))
+    # Um texto recusado pelos guardrails não é erro de execução: o relatório traz o motivo.
+    return 0
+
+
 def _cmd_outcomes(args: argparse.Namespace) -> int:
     from hotelml.outcomes import export_outcomes
 
@@ -298,6 +350,15 @@ def build_parser() -> argparse.ArgumentParser:
     explain.add_argument("--permutations", type=int, default=1000)
     explain.add_argument("--seed", type=int, default=0)
     explain.set_defaults(func=_cmd_explain)
+
+    narrate = sub.add_parser("narrate", help="explica os fatores em linguagem natural (Claude)")
+    narrate.add_argument("--factors", required=True, help="relatório de hotelml explain")
+    narrate.add_argument("--output", required=True, help="novo relatório JSON")
+    narrate.add_argument("--prompt-version", help="padrão: versão ativa do manifesto")
+    narrate.add_argument("--prices", default="monitoring/llm-prices.json")
+    narrate.add_argument("--trace-file", help="grava spans OpenTelemetry em JSONL")
+    narrate.add_argument("--dry-run", action="store_true", help="não chama a API; usa o texto fixo")
+    narrate.set_defaults(func=_cmd_narrate)
 
     outcomes = sub.add_parser("outcomes", help="converte estados finais da origem em desfechos")
     outcomes.add_argument("--source", required=True, help="Parquet/CSV com ID, estado e data")
