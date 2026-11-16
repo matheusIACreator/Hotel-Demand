@@ -16,7 +16,7 @@ from hotelml.narrative import (
 
 def report(contributions: dict[str, tuple[float, float]], probability=0.84, baseline=0.359):
     """Relatório mínimo de `hotelml explain`: campo -> (contribuição, erro padrão)."""
-    values = {"lead_time": 104, "adr": 119.59, "market_segment": "Online TA", "company": None}
+    values = {"lead_time": 104, "adr": 119.586, "market_segment": "Online TA", "company": None}
     factors = [
         {
             "field": name,
@@ -106,6 +106,7 @@ def test_facts_keep_only_clear_effects_rounded_and_labeled(facts):
         "direction": "aumenta",
         "effect_pp": 14.6,
     }
+    assert facts["factors"][2]["value"] == 119.59  # 119,586 na reserva
     assert facts["factors"][3]["direction"] == "reduz" and facts["factors"][3]["value"] is None
     assert facts["other_fields"] == len(INPUT_COLUMNS) - 4
     # 14,6 contra 9,7 com erros pequenos: o primeiro destaca-se com folga.

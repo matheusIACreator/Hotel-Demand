@@ -1,0 +1,15 @@
+{
+  "generator": "scripts/build_explain_cases.py",
+  "bookings": "make_synthetic(600, seed=11)",
+  "model": {
+    "model_name": "hotel-cancellation",
+    "model_version": "1",
+    "run_id": "7f9a2733a8c7497282ea957eac8f0937"
+  },
+  "reference_sha256": "a4426546eb3629102a5ef586cce1121cff1f40a459edb9dbb22ccaadda0b5383",
+  "attribution": {
+    "method": "permutation_shapley",
+    "permutations": 1000,
+    "seed": 0
+  }
+}

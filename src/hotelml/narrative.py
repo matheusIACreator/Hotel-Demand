@@ -97,7 +97,10 @@ def build_facts(report: dict[str, Any], *, max_factors: int = MAX_FACTORS) -> di
             {
                 "field": factor["field"],
                 "label": FIELD_LABELS[factor["field"]],
-                "value": factor["value"],
+                # Decimais com duas casas: é o valor que o texto pode citar sem arredondar.
+                "value": round(factor["value"], 2)
+                if isinstance(factor["value"], float)
+                else factor["value"],
                 "direction": "aumenta" if factor["contribution"] > 0 else "reduz",
                 "effect_pp": round(abs(factor["contribution"]) * 100, 1),
             }
